@@ -1,0 +1,92 @@
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../Data/db.js');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+
+const User = sequelize.define('User', {
+    id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+    },
+    FirstName: {
+        type: DataTypes.STRING,
+        allowNull: false,
+    },
+    LastName: {
+        type: DataTypes.STRING,
+        allowNull: false,
+    },
+    Email: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true,
+        validate: {
+            isEmail: { msg: "Invalid email format" },
+        },
+    },
+    PhoneNumber: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true,
+        validate: {
+            is: {
+                args: [/^\+?[1-9]\d{1,14}$/],
+                msg: "Invalid phone number format. Use E.164 format (e.g., +1234567890)",
+            },
+        },
+    },    
+    Password: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        validate: {
+            len: {
+                args: [6, 255],
+                msg: "Password must be at least 6 characters long.",
+            },
+            is: {
+                args: [/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/],
+                msg: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&).",
+            },
+        },
+    },    
+    TFA: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+    },
+    ProfilePhoto: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+}, {
+    tableName: 'Users',
+    timestamps: true,
+    hooks: {
+        beforeCreate: async (user) => {
+            if (user.Password) {
+                const salt = bcrypt.genSaltSync(10, "a");
+                user.Password = bcrypt.hashSync(user.Password, salt);
+            }
+        }
+    }
+});
+
+User.prototype.getJWTToken = function () {
+    return jwt.sign({ id: this.id }, process.env.JWT_SECRET, {
+        expiresIn: process.env.JWT_EXPIRE,
+    });
+};
+
+User.prototype.comparePassword = async function (enteredPassword) {
+    return await bcrypt.compare(enteredPassword, this.Password);
+};
+
+User.prototype.getResetPasswordToken = function () {
+    const resetToken = crypto.randomBytes(20).toString("hex");
+    this.resetPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+    this.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
+    return resetToken;
+};
+
+module.exports = User;
