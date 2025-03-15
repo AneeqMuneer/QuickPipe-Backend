@@ -250,3 +250,48 @@ exports.UpdatePassword = catchAsyncError(async (req , res , next) => {
         message: "Password updated successfully"
     });
 });
+
+exports.GetUserDetails = catchAsyncError(async (req , res , next) => {
+    const Id = req.user.User.id;
+
+    if (!Id) {
+        return next(new ErrorHandler("User not found" , 400));
+    }
+
+    const User = await UserModel.findByPk(Id);
+
+    if (!User) {
+        return next(new ErrorHandler("User doesn't exist" , 400));
+    }
+
+    res.status(200).json({
+        success: true,
+        message: "User found successfully",
+        User
+    });
+});
+
+exports.UpdateUserDetails = catchAsyncError(async (req , res , next) => {
+    const { FirstName , LastName , Email , PhoneNumber , TFA } = req.body;
+    const Id = req.user.User.id;
+    
+    const User = await UserModel.findByPk(Id);
+
+    if (!User) {
+        return next(new ErrorHandler("User doesn't exist", 400));
+    }
+
+    User.FirstName = FirstName || User.FirstName;
+    User.LastName = LastName || User.LastName;
+    User.Email = Email || User.Email;
+    User.PhoneNumber = PhoneNumber || User.PhoneNumber;
+    User.TFA = TFA ?? User.TFA;
+
+    await User.save();
+
+    res.status(200).json({
+        success: true,
+        message: "User data updated successfully",
+        User
+    });
+});
