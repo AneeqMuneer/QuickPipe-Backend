@@ -16,6 +16,9 @@ app.use(express.urlencoded({
     limit: '50mb'
 }));
 
+const UserRoutes = require("./Routes/userRoutes");
+
+app.use("/User", UserRoutes);
 
 
 app.use(middleware)

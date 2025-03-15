@@ -1,11 +1,15 @@
 const express = require("express");
-const { UserLogin , UserSignUp } = require("../Controller/ambassadorController");
+const { Login , Signup , TwoFactorAuthentication , VerifyCode , ForgetPassword , VerifyOldPassword , UpdatePassword , ResetPassword } = require("../Controller/userController");
 const { VerifyUser } = require("../Middleware/userAuth");
-// const upload = require("../Middleware/multer.js");
 
 const router = express.Router();
 
-router.route("/signup").post(UserSignUp);
-router.route("/login").post(UserLogin);
+router.route("/Signup").post(Signup);
+router.route("/Login").post(Login , TwoFactorAuthentication);
+router.route("/VerifyCode").post(VerifyCode);
+router.route("/2FA").get(VerifyUser , TwoFactorAuthentication);
+router.route("/ForgetPassword").post(VerifyUser , ForgetPassword);
+router.route("/ResetPassword").post(ResetPassword);
+router.route("/UpdatePassword").post(VerifyUser , VerifyOldPassword , UpdatePassword);
 
 module.exports = router;

@@ -4,6 +4,8 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
+const { GenerateAuthCode, GenerateTimestampAuthCode } = require("../Utils/userUtils.js");
+
 const User = sequelize.define('User', {
     id: {
         type: DataTypes.UUID,
@@ -36,7 +38,7 @@ const User = sequelize.define('User', {
                 msg: "Invalid phone number format. Use E.164 format (e.g., +1234567890)",
             },
         },
-    },    
+    },
     Password: {
         type: DataTypes.STRING,
         allowNull: true,
@@ -45,15 +47,24 @@ const User = sequelize.define('User', {
                 args: [6, 255],
                 msg: "Password must be at least 6 characters long.",
             },
-            is: {
-                args: [/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/],
-                msg: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&).",
-            },
         },
-    },    
+    },
     TFA: {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
+    },
+    TFACode: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        unique: true
+    },
+    TFAExpiration: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
+    ResetActive: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
     },
     ProfilePhoto: {
         type: DataTypes.STRING,
@@ -88,5 +99,44 @@ User.prototype.getResetPasswordToken = function () {
     this.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
     return resetToken;
 };
+
+User.prototype.getAuthCode = async function () {
+    let code;
+    let isUnique = false;
+
+    try {
+        for (let i = 0; i < 5; i++) { // Try up to 5 times to generate a unique code
+            code = await GenerateAuthCode();
+            const existingUser = await User.findOne({ where: { TFACode: code } });
+            if (!existingUser) {
+                isUnique = true;
+                break;
+            }
+        }
+
+        if (!isUnique) {
+            code = await GenerateTimestampAuthCode(); // Fallback if all attempts fail
+        }
+
+        this.TFACode = code;
+        this.TFAExpiration = new Date(Date.now() + 10 * 60 * 1000); // 10 min expiration
+        await this.save();
+        return code;
+    } catch (error) {
+        console.error("Error generating auth code:", error);
+        throw error;
+    }
+};
+
+User.prototype.IsCodeValid = function () {
+    if (this.TFACode && this.TFAExpiration && Date.now() > this.TFAExpiration) {
+        this.TFACode = null;
+        this.TFAExpiration = null;
+        return false;
+    }
+    this.TFACode = null;
+    this.TFAExpiration = null;
+    return true;
+}
 
 module.exports = User;

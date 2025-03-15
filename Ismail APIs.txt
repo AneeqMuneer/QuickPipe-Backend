@@ -1,0 +1,21 @@
+Controllers:-
+- Task Model
+- GetCalendarMonthTasks (input: date range)
+- AddTask
+- SearchLead
+--------------------------------------------------------
+- GetAllLeads
+- UpdateLeadStatus
+--------------------------------------------------------
+- GetAllWebsiteVisitor (Includes the filter functionaility)
+- GetAIVisitorContact
+- Campaign Model
+- AddToCampaign
+- SearchVisitor
+
+
+
+
+
+Questions:-
+- GenerateZoomLink

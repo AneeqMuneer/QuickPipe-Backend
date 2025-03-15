@@ -21,7 +21,7 @@ exports.VerifyUser = asyncError(async (req, res, next) => {
 
     if (member) {
         req.user = {
-            member: member,
+            User: member,
         };
         next();
     } else {
