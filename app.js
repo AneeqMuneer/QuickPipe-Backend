@@ -16,10 +16,14 @@ app.use(express.urlencoded({
     limit: '50mb'
 }));
 
-const UserRoutes = require("./Routes/userRoutes");
+const UserRoutes = require('./Routes/userRoutes')
+const ZoomRoutes = require('./Routes/zoomRoutes')
+const CalendarRoutes = require('./Routes/calendarRoutes')
 
-app.use("/User", UserRoutes);
+app.use("/user",UserRoutes);
+app.use("/zoom",ZoomRoutes);
+app.use("/calendar",CalendarRoutes)
 
 
-app.use(middleware)
+app.use(middleware);
 module.exports = app;
