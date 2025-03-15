@@ -66,6 +66,7 @@ exports.Login = catchAsyncError(async (req, res, next) => {
     }
 
     if (User.TFA) {
+        req.user = {};
         req.user.User = User;
         return next();
     }
@@ -175,7 +176,7 @@ exports.ResetPassword = catchAsyncError(async (req , res , next) => {
 
     const isPasswordMatched = await User.comparePassword(NewPassword);
 
-    if (!isPasswordMatched) {
+    if (isPasswordMatched) {
         return next(new ErrorHandler("New password cannot be same as the last one", 400));
     }
 
