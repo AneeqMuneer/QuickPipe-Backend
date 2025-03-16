@@ -1,16 +1,16 @@
 Controllers:-
-- Task Model
-- GetCalendarMonthTasks (input: date range)
-- AddTask
-- SearchLead
+- Task Model> done
+- GetCalendarMonthTasks (input: date range) remaining
+- AddTask > dependent on calendar
+- SearchLead > done
 --------------------------------------------------------
-- GetAllLeads
-- UpdateLeadStatus
+- GetAllLeads > done
+- UpdateLeadStatus > done
 --------------------------------------------------------
-- GetAllWebsiteVisitor (Includes the filter functionaility)
-- GetAIVisitorContact
-- Campaign Model
-- AddToCampaign
+- GetAllWebsiteVisitor (Includes the filter functionaility) > dependent on domain
+- GetAIVisitorContact > dependent on domain
+- Campaign Model > done
+- AddToCampaign > done
 - SearchVisitor
 
 
