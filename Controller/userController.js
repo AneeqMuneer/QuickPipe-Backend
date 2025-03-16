@@ -88,7 +88,8 @@ exports.TwoFactorAuthentication = catchAsyncError(async (req, res, next) => {
     await SendAuthCodeMail(User.Email, code);
     res.status(200).json({
         success: true,
-        message: "Auth code sent to user via email successfully."
+        message: "Auth code sent to user via email successfully.",
+        User
     });
 });
 

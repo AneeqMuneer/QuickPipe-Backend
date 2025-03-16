@@ -73,7 +73,7 @@ exports.SendAuthCodeMail = async (email, authCode) => {
 
 exports.SendForgetPasswordMail = async (email, resetToken) => {
     try {
-        const resetUrl = `${process.env.BACKEND_URL}/User/ResetPassword?token=${resetToken}`;
+        const resetUrl = `${process.env.FRONTEND_URL}/reset?token=${resetToken}`;
 
         const transporter = nodemailer.createTransport({
             service: 'gmail',
