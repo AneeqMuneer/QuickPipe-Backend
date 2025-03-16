@@ -1,5 +1,6 @@
-const { DataTypes } = require('sequelize');
-const { sequelize } = require('../config/db');
+const { DataTypes} = require('sequelize');
+const { sequelize } = require('../Data/db.js');
+const { datacatalog } = require('googleapis/build/src/apis/datacatalog');
 
 const Lead = sequelize.define(
   'Lead',
@@ -29,9 +30,17 @@ const Lead = sequelize.define(
       allowNull: true
     },
     status: {
-      type: DataTypes.STRING(20),
-      allowNull: true,
-      defaultValue: 'new'
+      type:DataTypes.ENUM,
+      values: [
+        "Discovery",
+        "Evaluation",
+        "Proposal",
+        "Negotiation",
+        "Commit",
+        "Closed",
+      ],
+      allowNull: false,
+      defaultValue: "Discovery",
     },
     campaignId: {
       type: DataTypes.UUID,
@@ -42,7 +51,23 @@ const Lead = sequelize.define(
         key: 'id'
       },
       onDelete: 'SET NULL'
+    },
+    website:{
+      type:DataTypes.STRING,
+      allowNull:true,
+    },
+    title:{
+      type:DataTypes.STRING,
+      allowNull:true,
+    },
+    location:{
+      type:DataTypes.STRING,
+    },
+    employeeCount:{
+      type:DataTypes.INTEGER,
     }
+
+    
   },
   {
     tableName: 'Leads',

@@ -37,8 +37,8 @@ exports.connectGoogleCalendar = catchAsyncError(async (req, res, next) => {
     if (!req.user) {
         return res.status(401).json({ success: false, message: "User not authenticated" });
       }
-    console.log(req.user.member.id)
-    const state = encodeURIComponent(JSON.stringify({ userId: req.user.member.id }));
+    console.log(req.user.User.id)
+    const state = encodeURIComponent(JSON.stringify({ userId: req.user.User.id }));
     // Generate the Google authentication URL
     const url = oauth2Client.generateAuthUrl({
         access_type: 'offline', // Request offline access to receive a refresh token
@@ -77,6 +77,8 @@ exports.handleOAuthCallback = catchAsyncError(async (req, res,next) => {
       const user = await UserModel.findOne({
         where:{id:userId}
       });
+
+      //workspace ke andar
       await user.update({
         googleAuthCode: code,
         googleAccessToken:tokens.access_token,
