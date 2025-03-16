@@ -67,17 +67,21 @@ exports.AddMember = catchAsyncError(async (req , res , next) => {
 exports.GetWorkspaceMembers = catchAsyncError(async (req , res , next) => {
     const WorkspaceId = req.user.User.CurrentWorkspaceId;
 
-    const Members = await MemberModel.findAll({
+    const WorkspaceMembers = await MemberModel.findAll({
         where: {
             WorkspaceId
         }
     });
 
+    const Members = WorkspaceMembers.filter(member => !member.IsInvite);
+    const Invites = WorkspaceMembers.filter(member => member.IsInvite);
+
     res.status(200).json({
         success: true,
         message: "Members fetched successfully",
-        count: Members.length,
-        Members
+        count: Members.length + Invites.length,
+        Members,
+        Invites
     });
 });
 

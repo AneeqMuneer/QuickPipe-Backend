@@ -1,7 +1,5 @@
 const ErrorHandler = require("../Utils/errorHandler");
 const catchAsyncError = require("../Middleware/asyncError");
-const TokenCreation = require("../Utils/tokenCreation");
-const { Op } = require("sequelize");
 
 const UserModel = require("../Model/userModel");
 const WorkspaceModel = require("../Model/workspaceModel");
@@ -124,7 +122,29 @@ exports.SwitchWorkspace = catchAsyncError(async (req , res , next) => {
         return next(new ErrorHandler("User not found" , 400));
     }
 
-    await User.setCurrentWorkspace(WorkspaceId);
+    const OwnedWorkspaces = await WorkspaceModel.findAll({
+        where: {
+            OwnerId: Id,
+        },
+        attributes: ['id', 'WorkspaceName'],
+    });
+
+    const MemberWorkspaces = await MemberModel.findAll({
+        where: {
+            UserId: Id
+        },
+        attributes: ['WorkspaceId']
+    });
+
+    const OwnedWorkspaceIds = OwnedWorkspaces.map(workspace => workspace.id);
+    const MemberWorkspaceIds = MemberWorkspaces.map(workspace => workspace.WorkspaceId);
+
+    if (![...OwnedWorkspaceIds, ...MemberWorkspaceIds].includes(WorkspaceId)) {
+        return next(new ErrorHandler("You don't have access to this workspace", 403));
+    }
+
+    User.CurrentWorkspaceId = WorkspaceId;
+    await User.save();
 
     const Workspace = await WorkspaceModel.findByPk(WorkspaceId);
 
