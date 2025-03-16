@@ -36,6 +36,9 @@ exports.Signup = catchAsyncError(async (req, res, next) => {
         WorkspaceName: `${User.FirstName}'s Workspace`
     });
 
+    User.CurrentWorkspaceId = Workspace.id;
+    await User.save();
+
     res.status(201).json({
         success: true,
         message: "User created successfully",

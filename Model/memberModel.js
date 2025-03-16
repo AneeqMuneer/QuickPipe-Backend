@@ -33,6 +33,13 @@ const Member = sequelize.define('Member', {
 }, {
     tableName: 'Members',
     timestamps: true,
+    hooks: {
+        beforeCreate: async (member) => {
+            if (member.IsInvite) {
+                member.InviteExpiration = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+            }
+        }
+    }
 });
 
 Member.prototype.IsInviteValid = function () {
