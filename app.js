@@ -16,13 +16,17 @@ app.use(express.urlencoded({
     limit: '50mb'
 }));
 
-const UserRoutes = require('./Routes/userRoutes')
-const ZoomRoutes = require('./Routes/zoomRoutes')
-const CalendarRoutes = require('./Routes/calendarRoutes')
+const UserRoutes = require('./Routes/userRoutes');
+const ZoomRoutes = require('./Routes/zoomRoutes');
+const CalendarRoutes = require('./Routes/calendarRoutes');
+const WorkspaceRoutes = require("./Routes/workspaceRoutes");
+const MemberRoutes = require("./Routes/memberRoutes");
 
-app.use("/user",UserRoutes);
-app.use("/zoom",ZoomRoutes);
-app.use("/calendar",CalendarRoutes)
+app.use("/user" , UserRoutes);
+app.use("/workspace" , WorkspaceRoutes)
+app.use("/zoom" , ZoomRoutes);
+app.use("/calendar" , CalendarRoutes);
+app.use("/member" , MemberRoutes);
 
 
 app.use(middleware);

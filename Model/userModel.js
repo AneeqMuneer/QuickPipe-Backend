@@ -41,7 +41,7 @@ const User = sequelize.define('User', {
     },
     Password: {
         type: DataTypes.STRING,
-        allowNull: true,
+        allowNull: false,
         validate: {
             len: {
                 args: [6, 255],
@@ -65,6 +65,10 @@ const User = sequelize.define('User', {
     ResetActive: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
+    },
+    CurrentWorkspaceId: {
+        type: DataTypes.UUID,
+        allowNull: true,
     },
     ProfilePhoto: {
         type: DataTypes.STRING,
@@ -98,6 +102,12 @@ User.prototype.getResetPasswordToken = function () {
     this.resetPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex");
     this.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
     return resetToken;
+};
+
+User.prototype.setCurrentWorkspace = async function(workspaceId) {
+    this.CurrentWorkspaceId = workspaceId;
+    await this.save();
+    return this;
 };
 
 User.prototype.getAuthCode = async function () {
