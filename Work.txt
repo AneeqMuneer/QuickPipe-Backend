@@ -1,0 +1,71 @@
+                                    Settings
+----------------------------------------------------------------------------------
+- API Model
+- AddApi api
+
+                                    Support
+----------------------------------------------------------------------------------
+- AddReport
+- SendReportMail
+- HelpDeskModel
+
+                                    Calendar
+----------------------------------------------------------------------------------
+- CalendarConnection
+- GetAllTasks (Day , Week , Month)
+- AddTask
+- 
+
+                                Website Visitor
+----------------------------------------------------------------------------------
+- GetAllVisitors
+- GetVisitorContact
+- AddVisitorToCampaign
+- SearchVisitor
+- FilterVisitor
+
+                                AI Lead Scout
+----------------------------------------------------------------------------------
+- SearchLeads (with filters too)
+- AddLeadToCampaign
+- SkipAlreadyOwned
+
+                                Email Accounts
+----------------------------------------------------------------------------------
+- GetAllUserEmails
+- SearchEmail
+- ReadyToSendEmail
+- HassleFreeEmail
+- GmailEmail
+- Microsoft365Email
+- SMTP/IMAP Email
+- and many more
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                    Remaining Work
+----------------------------------------------------------------------------------
+- Profile Settings -- Save image
+- Help Desk -- Save files
+
+                                    Questions
+----------------------------------------------------------------------------------
+- Profile Settings -- Where to host the images?
+- Help Desk -- Does the details need to be saved or emailed only?
+- Calendar -- Can't the user add the zoom link themselves?
+- Website Visitor -- What is the difference between saving to the CRM and the campaign?
