@@ -1,7 +1,7 @@
 const nodemailer = require('nodemailer');
 const path = require('path');
 
-const AppLogoPath = path.join(__dirname, '../Assets/Images/logo.png');
+const AppLogoPath = process.env.COMPANY_LOGO;
 
 exports.GenerateAuthCode = async () => {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -50,7 +50,7 @@ exports.SendAuthCodeMail = async (email, authCode) => {
         <img src="${AppLogoPath}" alt="QuickPipe AI" style="width: 120px; height: auto; margin-bottom: 20px;">
         <h2 style="color: #333;">Two-Factor Authentication</h2>
         <p style="font-size: 16px;">Use the following code to complete your login:</p>
-        <h3 style="font-size: 24px; font-weight: bold; color: #d9534f; padding: 10px; border: 2px dashed #d9534f; display: inline-block;">${authCode}</h3>
+        <h3 style="font-size: 24px; font-weight: bold; color: #16C47F; padding: 10px; border: 2px dashed #16C47F; display: inline-block;">${authCode}</h3>
         <p style="font-size: 14px; color: #777;">This code is valid for a limited time. Do not share it with anyone.</p>
         <p style="font-size: 14px;">If you did not request this, please ignore this email.</p>
         <br>
@@ -103,7 +103,7 @@ exports.SendForgetPasswordMail = async (email, resetToken) => {
         <img src="${AppLogoPath}" alt="QuickPipe AI" style="width: 120px; height: auto; margin-bottom: 20px;">
         <h2 style="color: #333;">Password Reset Request</h2>
         <p style="font-size: 16px;">Click the button below to reset your password:</p>
-        <a href="${resetUrl}" style="display: inline-block; background-color: #d9534f; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; margin: 15px 0; font-weight: bold;">Reset Password</a>
+        <a href="${resetUrl}" style="display: inline-block; background-color: #16C47F; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; margin: 15px 0; font-weight: bold;">Reset Password</a>
         <p style="font-size: 14px; color: #777;">This link is valid for one time use only.</p>
         <p style="font-size: 14px;">If you did not request this password reset, please ignore this email.</p>
         <br>
