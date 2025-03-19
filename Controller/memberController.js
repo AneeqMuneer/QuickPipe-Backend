@@ -8,19 +8,18 @@ const { SendInviteMail } = require("../Utils/memberUtils");
 const UserModel = require("../Model/userModel");
 const WorkspaceModel = require("../Model/workspaceModel");
 const MemberModel = require("../Model/memberModel");
-const Member = require("../Model/memberModel");
 
 exports.AddMember = catchAsyncError(async (req , res , next) => {
     const { Email , Role } = req.body;
     const WorkspaceId = req.user.User.CurrentWorkspaceId;
 
     if (!Email || !Role) {
-        return next("Please enter the required fields" , 400);
+        return next(new ErrorHandler("Please enter the required fields" , 400));
     }
 
     const User = await UserModel.findOne({
         where: {
-            Email
+            Email: Email.toLowerCase()
         }
     });
 
@@ -46,7 +45,11 @@ exports.AddMember = catchAsyncError(async (req , res , next) => {
     });
 
     if (Invite) {
-        return next("Invite already sent to this user" , 400);
+        if (Invite.IsInvite) {
+            return next(new ErrorHandler("Invite already sent to this user" , 400));
+        } else {
+            return next(new ErrorHandler("User is already a member of this workspace" , 400));
+        }
     }
 
     const Member = await MemberModel.create({

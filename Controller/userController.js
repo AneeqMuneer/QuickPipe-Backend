@@ -29,8 +29,6 @@ exports.Signup = catchAsyncError(async (req, res, next) => {
         Password
     });
 
-    console.log(User);
-
     const Workspace = await WorkspaceModel.create({
         OwnerId: User.id,
         WorkspaceName: `${User.FirstName}'s Workspace`
@@ -55,19 +53,21 @@ exports.Login = catchAsyncError(async (req, res, next) => {
     }
 
     const User = await UserModel.findOne({
-        where: { Email }
+        where: {
+            Email: Email.toLowerCase()
+        }
     });
-
+    console.log("1")
     if (!User) {
         return next(new ErrorHandler("Invalid Email or Password.", 401));
     }
-
+    console.log("1")
     const isPasswordMatched = await User.comparePassword(Password);
-
+    console.log("1")
     if (!isPasswordMatched) {
         return next(new ErrorHandler("Invalid Email or Password.", 401));
     }
-
+    console.log("1")
     if (User.TFA) {
         req.user = {};
         req.user.User = User;

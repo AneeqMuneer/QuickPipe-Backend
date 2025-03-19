@@ -26,7 +26,12 @@ const User = sequelize.define('User', {
         unique: true,
         validate: {
             isEmail: { msg: "Invalid email format" },
+            notEmpty: { msg: "Email cannot be empty" },
+            isLowercase: true,
         },
+        set(value) {
+            this.setDataValue('Email', value.toLowerCase());
+        }
     },
     PhoneNumber: {
         type: DataTypes.STRING,
@@ -115,7 +120,7 @@ User.prototype.getAuthCode = async function () {
     let isUnique = false;
 
     try {
-        for (let i = 0; i < 5; i++) { // Try up to 5 times to generate a unique code
+        for (let i = 0; i < 5; i++) {
             code = await GenerateAuthCode();
             const existingUser = await User.findOne({ where: { TFACode: code } });
             if (!existingUser) {
@@ -125,11 +130,11 @@ User.prototype.getAuthCode = async function () {
         }
 
         if (!isUnique) {
-            code = await GenerateTimestampAuthCode(); // Fallback if all attempts fail
+            code = await GenerateTimestampAuthCode();
         }
 
         this.TFACode = code;
-        this.TFAExpiration = new Date(Date.now() + 10 * 60 * 1000); // 10 min expiration
+        this.TFAExpiration = new Date(Date.now() + 10 * 60 * 1000);
         await this.save();
         return code;
     } catch (error) {
