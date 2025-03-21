@@ -7,6 +7,7 @@ const jwt = require("jsonwebtoken");
 
 const UserModel = require("../Model/userModel");
 const WorkspaceModel = require("../Model/workspaceModel");
+const APIModel = require("../Model/apiModel");
 
 const { SendAuthCodeMail, SendForgetPasswordMail } = require("../Utils/userUtils");
 
@@ -34,6 +35,10 @@ exports.Signup = catchAsyncError(async (req, res, next) => {
         WorkspaceName: `${User.FirstName}'s Workspace`
     });
 
+    const API = await APIModel.create({
+        WorkspaceId: Workspace.id
+    });
+
     User.CurrentWorkspaceId = Workspace.id;
     await User.save();
 
@@ -41,7 +46,8 @@ exports.Signup = catchAsyncError(async (req, res, next) => {
         success: true,
         message: "User created successfully",
         User,
-        Workspace
+        Workspace,
+        API
     });
 });
 

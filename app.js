@@ -21,16 +21,18 @@ const ZoomRoutes = require('./Routes/zoomRoutes');
 const CalendarRoutes = require('./Routes/calendarRoutes');
 const WorkspaceRoutes = require("./Routes/workspaceRoutes");
 const MemberRoutes = require("./Routes/memberRoutes");
-const leadRoutes = require('./Routes/leadRoutes')
-const campaignRoutes = require('./Routes/campaignRoutes')
+const leadRoutes = require('./Routes/leadRoutes');
+const campaignRoutes = require('./Routes/campaignRoutes');
+const apiRoutes = require("./Routes/apiRoutes");
 
 app.use("/user" , UserRoutes);
 app.use("/workspace" , WorkspaceRoutes)
 app.use("/zoom" , ZoomRoutes);
 app.use("/calendar" , CalendarRoutes);
 app.use("/member" , MemberRoutes);
-app.use('/lead',leadRoutes)
-app.use('/campaign',campaignRoutes)
+app.use('/lead',leadRoutes);
+app.use('/campaign',campaignRoutes);
+app.use("/integration" , apiRoutes);
 
 
 app.use(middleware);
