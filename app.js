@@ -24,6 +24,7 @@ const MemberRoutes = require("./Routes/memberRoutes");
 const leadRoutes = require('./Routes/leadRoutes');
 const campaignRoutes = require('./Routes/campaignRoutes');
 const apiRoutes = require("./Routes/apiRoutes");
+const helpRoutes = require("./Routes/helpRoutes");
 
 app.use("/user" , UserRoutes);
 app.use("/workspace" , WorkspaceRoutes)
@@ -33,6 +34,7 @@ app.use("/member" , MemberRoutes);
 app.use('/lead',leadRoutes);
 app.use('/campaign',campaignRoutes);
 app.use("/integration" , apiRoutes);
+app.use("/help" , helpRoutes);
 
 
 app.use(middleware);
