@@ -323,7 +323,3 @@ exports.SwitchTFA = catchAsyncError(async (req , res , next) => {
         User
     });
 });
-
-exports.DKSPODF = catchAsyncError(async (req, res, next) => {
-    
-});
