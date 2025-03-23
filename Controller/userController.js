@@ -282,7 +282,7 @@ exports.GetUserDetails = catchAsyncError(async (req , res , next) => {
 });
 
 exports.UpdateUserDetails = catchAsyncError(async (req , res , next) => {
-    const { FirstName , LastName , Email , PhoneNumber , TFA } = req.body;
+    const { FirstName , LastName , Email , PhoneNumber } = req.body;
     const Id = req.user.User.id;
     
     const User = await UserModel.findByPk(Id);
@@ -295,13 +295,31 @@ exports.UpdateUserDetails = catchAsyncError(async (req , res , next) => {
     User.LastName = LastName || User.LastName;
     User.Email = Email || User.Email;
     User.PhoneNumber = PhoneNumber || User.PhoneNumber;
-    User.TFA = TFA ?? User.TFA;
 
     await User.save();
 
     res.status(200).json({
         success: true,
         message: "User data updated successfully",
+        User
+    });
+});
+
+exports.SwitchTFA = catchAsyncError(async (req , res , next) => {
+    const Id = req.user.User.id;
+
+    const User = await UserModel.findByPk(Id);
+
+    if (!User) {
+        return next(new ErrorHandler("User not found", 400));
+    }
+
+    User.TFA = !User.TFA;
+    await User.save();
+
+    res.status(200).json({
+        success: true,
+        message: "TFA switched successfully",
         User
     });
 });

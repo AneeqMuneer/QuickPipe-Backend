@@ -1,5 +1,5 @@
 const express = require("express");
-const { Login, Signup, TwoFactorAuthentication, VerifyCode, ForgetPassword, VerifyOldPassword, UpdatePassword, ResetPassword, GetUserDetails, UpdateUserDetails } = require("../Controller/userController");
+const { Login, Signup, TwoFactorAuthentication, VerifyCode, ForgetPassword, VerifyOldPassword, UpdatePassword, ResetPassword, GetUserDetails, UpdateUserDetails, SwitchTFA } = require("../Controller/userController");
 const { VerifyUser } = require("../Middleware/userAuth");
 
 const router = express.Router();
@@ -15,5 +15,6 @@ router.route("/ResetPassword").put(ResetPassword);
 router.route("/GetUserDetails").get(VerifyUser, GetUserDetails);
 router.route("/UpdateUserDetails").put(VerifyUser, UpdateUserDetails);
 router.route("/UpdatePassword").put(VerifyUser, VerifyOldPassword, UpdatePassword);
+router.route("/SwitchTFA").put(VerifyUser, SwitchTFA);
 
 module.exports = router;
