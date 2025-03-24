@@ -63,17 +63,17 @@ exports.Login = catchAsyncError(async (req, res, next) => {
             Email: Email.toLowerCase()
         }
     });
-    console.log("1")
+    
     if (!User) {
         return next(new ErrorHandler("Invalid Email or Password.", 401));
     }
-    console.log("1")
+    
     const isPasswordMatched = await User.comparePassword(Password);
-    console.log("1")
+    
     if (!isPasswordMatched) {
         return next(new ErrorHandler("Invalid Email or Password.", 401));
     }
-    console.log("1")
+    
     if (User.TFA) {
         req.user = {};
         req.user.User = User;
@@ -100,7 +100,7 @@ exports.TwoFactorAuthentication = catchAsyncError(async (req, res, next) => {
 });
 
 exports.VerifyCode = catchAsyncError(async (req, res, next) => {
-    const { UserCode } = req.body;
+    const { UserCode , Login } = req.body;
 
     if (!UserCode) {
         return next(new ErrorHandler("Enter the required fields", 401));
@@ -120,7 +120,15 @@ exports.VerifyCode = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler("The code has expired. Please try again.", 400));
     }
 
-    TokenCreation(User, 201, res);
+    if (Login) {
+        TokenCreation(User, 201, res);
+    } else {
+        res.status(200).json({
+            success: true,
+            message: "Code verified successfully",
+        });
+    }
+
 });
 
 exports.ForgetPassword = catchAsyncError(async (req , res , next) => {
