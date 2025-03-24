@@ -128,7 +128,6 @@ exports.VerifyCode = catchAsyncError(async (req, res, next) => {
             message: "Code verified successfully",
         });
     }
-
 });
 
 exports.ForgetPassword = catchAsyncError(async (req , res , next) => {
