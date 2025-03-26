@@ -29,12 +29,13 @@ exports.AddMember = catchAsyncError(async (req , res , next) => {
 
     const Workspace = await WorkspaceModel.findOne({
         where: {
-            id: WorkspaceId
+            id: WorkspaceId,
+            OwnerId: req.user.User.id
         }
     });
 
     if (!Workspace) {
-        return next(new ErrorHandler("Workspace doesn't exist" , 400));
+        return next(new ErrorHandler("Either the workspace doesn't exist or you don't own the workspace" , 400));
     }
 
     const Invite = await MemberModel.findOne({
@@ -79,6 +80,16 @@ exports.GetWorkspaceMembers = catchAsyncError(async (req , res , next) => {
     const Members = WorkspaceMembers.filter(member => !member.IsInvite);
     const Invites = WorkspaceMembers.filter(member => member.IsInvite);
 
+    for (let i = 0; i < Members.length; i++) {
+        const user = await UserModel.findByPk(Members[i].UserId);
+        Members[i].dataValues.FullName = user.FirstName + " " + user.LastName;
+    }
+
+    for (let i = 0; i < Invites.length; i++) {
+        const user = await UserModel.findByPk(Invites[i].UserId);
+        Invites[i].dataValues.FullName = user.FirstName + " " + user.LastName;
+    }
+
     res.status(200).json({
         success: true,
         message: "Members fetched successfully",
@@ -88,7 +99,7 @@ exports.GetWorkspaceMembers = catchAsyncError(async (req , res , next) => {
     });
 });
 
-exports.AcceptInvitation = catchAsyncError(async (req , res , next) => {
+exports.VerifyInvitation = catchAsyncError(async (req , res , next) => {
     const { wkid , usid } = req.query;
 
     const Member = await MemberModel.findOne({
@@ -99,11 +110,32 @@ exports.AcceptInvitation = catchAsyncError(async (req , res , next) => {
     });
 
     if (!Member) {
-        return next("Invite not found" , 400);
+        return next(new ErrorHandler("Invite not found" , 400));
+    }
+
+    res.status(200).json({
+        success: true,
+        message: "Invite link is valid",
+        Member
+    });
+});
+
+exports.AcceptInvitation = catchAsyncError(async (req , res , next) => {
+    const { wkid , usid } = req.query;
+
+    const Member = await MemberModel.findOne({
+        where: {
+            UserId: usid,
+            WorkspaceId: wkid
+        }
+    });
+
+    if (!Member) {
+        return next(new ErrorHandler("Invite not found" , 400));
     }
 
     if (!Member.IsInviteValid()) {
-        return next("Invite link has been expired" , 400);
+        return next(new ErrorHandler("Invite link has been expired" , 400));
     }
 
     Member.IsInvite = false;
@@ -119,5 +151,31 @@ exports.AcceptInvitation = catchAsyncError(async (req , res , next) => {
         message: "Invite accepted",
         Member,
         User
+    });
+});
+
+exports.RejectInvitation = catchAsyncError(async (req , res , next) => {
+    const { wkid , usid } = req.query;
+
+    const Member = await MemberModel.findOne({
+        where: {
+            UserId: usid,
+            WorkspaceId: wkid
+        } 
+    });
+
+    if (!Member) {
+        return next(new ErrorHandler("Invite not found" , 400));
+    }
+
+    if (!Member.IsInviteValid()) {
+        return next(new ErrorHandler("Invite link has been expired" , 400));
+    }
+
+    await Member.destroy();
+
+    res.status(200).json({
+        success: true,
+        message: "Invite rejected",
     });
 });

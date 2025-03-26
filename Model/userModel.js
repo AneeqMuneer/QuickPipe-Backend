@@ -143,14 +143,16 @@ User.prototype.getAuthCode = async function () {
     }
 };
 
-User.prototype.IsCodeValid = function () {
+User.prototype.IsCodeValid = async function () {
     if (this.TFACode && this.TFAExpiration && Date.now() > this.TFAExpiration) {
         this.TFACode = null;
         this.TFAExpiration = null;
+        await this.save();
         return false;
     }
     this.TFACode = null;
     this.TFAExpiration = null;
+    await this.save();
     return true;
 }
 

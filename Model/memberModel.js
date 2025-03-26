@@ -42,7 +42,7 @@ const Member = sequelize.define('Member', {
     }
 });
 
-Member.prototype.IsInviteValid = function () {
+Member.prototype.IsInviteValid = async function () {
     if (this.InviteExpiration && Date.now() > this.InviteExpiration) {
         return false;
     }
