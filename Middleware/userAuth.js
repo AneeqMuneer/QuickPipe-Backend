@@ -7,6 +7,12 @@ const dotenv = require("dotenv");
 dotenv.config({ path: "./config/config.env" });
 
 exports.VerifyUser = asyncError(async (req, res, next) => {
+    if (!req.header("Authorization")) {
+        return next(
+            new errorHandler("Please login to access this resource", 401)
+        );
+    }
+
     let token = req.header("Authorization").replace("Bearer ", "");
 
     if (!token) {
