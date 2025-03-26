@@ -1,11 +1,9 @@
 const nodemailer = require('nodemailer');
-const path = require('path');
-const dotenv = require("dotenv");
 
 const AppLogoPath = process.env.COMPANY_LOGO;
 
 exports.SendInviteMail = async (User, Workspace) => {
-    const inviteUrl = `${process.env.BACKEND_URL}/member/AcceptInvitation?wkid=${Workspace.id}&usid=${User.id}`;
+    const inviteUrl = `${process.env.FRONTEND_URL}/member/AcceptInvitation?wkid=${Workspace.id}&usid=${User.id}`;
     try {
         const transporter = nodemailer.createTransport({
             service: 'gmail',
@@ -37,7 +35,7 @@ exports.SendInviteMail = async (User, Workspace) => {
         <p style="font-size: 16px;">You've been invited by <strong>${User.FirstName}</strong> to join:</p>
         <h3 style="font-size: 24px; font-weight: bold; color: #16C47F; padding: 10px; border: 2px dashed #16C47F; display: inline-block;">${Workspace.WorkspaceName}</h3>
         <p style="font-size: 14px; color: #777;">Click the button below to accept the invitation:</p>
-        <a href="${inviteUrl}" style="display: inline-block; background-color: #FF9D23; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; margin: 15px 0; font-weight: bold;">Accept Invitation</a>
+        <a href="${inviteUrl}" style="display: inline-block; background-color: #FF9D23; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; margin: 15px 0; font-weight: bold;">View Invitation</a>
         <p style="font-size: 14px; color: #777;">This invitation link is valid for 7 days.</p>
         <p style="font-size: 14px;">If you don't have a QuickPipe account, you can create one to accept this invitation.</p>
         <br>
