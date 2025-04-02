@@ -1,8 +1,7 @@
-const Campaign  = require("../Model/campaignModel");
+const Campaign = require("../Model/campaignModel");
 const catchAsyncError = require("../Middleware/asyncError");
 
-// ✅ Create a new campaign
-exports.createCampaign = catchAsyncError(async (req, res,next) => {
+exports.createCampaign = catchAsyncError(async (req, res, next) => {
   try {
     const campaign = await Campaign.create(req.body);
     res.status(201).json({ success: true, message: "Campaign created successfully", data: campaign });
@@ -12,7 +11,6 @@ exports.createCampaign = catchAsyncError(async (req, res,next) => {
   }
 });
 
-// ✅ Get all campaigns
 exports.getAllCampaigns = catchAsyncError(async (req, res) => {
   try {
     const campaigns = await Campaign.findAll();
@@ -23,8 +21,7 @@ exports.getAllCampaigns = catchAsyncError(async (req, res) => {
   }
 });
 
-// ✅ Get a single campaign by ID
-exports.getCampaignById =catchAsyncError( async (req, res) => {
+exports.getCampaignById = catchAsyncError(async (req, res) => {
   try {
     const campaign = await Campaign.findByPk(req.params.id);
     if (!campaign) return res.status(404).json({ success: false, message: "Campaign not found" });
@@ -36,8 +33,7 @@ exports.getCampaignById =catchAsyncError( async (req, res) => {
   }
 });
 
-// ✅ Update a campaign
-exports.updateCampaign =catchAsyncError( async (req, res) => {
+exports.updateCampaign = catchAsyncError(async (req, res) => {
   try {
     const [updated] = await Campaign.update(req.body, { where: { id: req.params.id } });
 
@@ -50,8 +46,7 @@ exports.updateCampaign =catchAsyncError( async (req, res) => {
   }
 });
 
-// ✅ Delete a campaign
-exports.deleteCampaign =catchAsyncError( async (req, res) => {
+exports.deleteCampaign = catchAsyncError(async (req, res) => {
   try {
     const deleted = await Campaign.destroy({ where: { id: req.params.id } });
 
