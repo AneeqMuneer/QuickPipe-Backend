@@ -1,6 +1,5 @@
 const { DataTypes} = require('sequelize');
 const { sequelize } = require('../Data/db.js');
-const { datacatalog } = require('googleapis/build/src/apis/datacatalog');
 
 const Lead = sequelize.define(
   'Lead',
@@ -10,26 +9,26 @@ const Lead = sequelize.define(
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true
     },
-    name: {
+    Name: {
       type: DataTypes.STRING,
       allowNull: false
     },
-    email: {
+    Email: {
       type: DataTypes.STRING,
       allowNull: true,
       validate: {
         isEmail: true
       }
     },
-    phone: {
+    Phone: {
       type: DataTypes.STRING(50),
       allowNull: true
     },
-    company: {
+    Company: {
       type: DataTypes.STRING,
       allowNull: true
     },
-    status: {
+    Status: {
       type:DataTypes.ENUM,
       values: [
         "Discovery",
@@ -42,38 +41,28 @@ const Lead = sequelize.define(
       allowNull: false,
       defaultValue: "Discovery",
     },
-    campaignId: {
+    CampaignId: {
       type: DataTypes.UUID,
-      allowNull: true,
-      field: 'campaign_id',
-      references: {
-        model: 'Campaigns',
-        key: 'id'
-      },
-      onDelete: 'SET NULL'
+      defaultValue: DataTypes.UUIDV4,
     },
-    website:{
+    Website:{
       type:DataTypes.STRING,
       allowNull:true,
     },
-    title:{
+    Title:{
       type:DataTypes.STRING,
       allowNull:true,
     },
-    location:{
+    Location:{
       type:DataTypes.STRING,
     },
-    employeeCount:{
+    EmployeeCount:{
       type:DataTypes.INTEGER,
     }
-
-    
   },
   {
     tableName: 'Leads',
     timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: 'updated_at'
   }
 );
 

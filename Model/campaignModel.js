@@ -9,53 +9,48 @@ const Campaign = sequelize.define(
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
-    name: {
+    SequenceId: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+    },
+    ScheduleId: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+    },
+    WorkspaceId: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+    },
+    Name: {
       type: DataTypes.STRING,
       allowNull: false,
     },
-    description: {
+    Description: {
       type: DataTypes.TEXT,
       allowNull: true,
     },
-    startDate: {
+    StartDate: {
       type: DataTypes.DATE,
       allowNull: false,
     },
-    endDate: {
+    EndDate: {
       type: DataTypes.DATE,
       allowNull: false,
     },
-    budget: {
+    Budget: {
       type: DataTypes.FLOAT,
       allowNull: true,
     },
-    status: {
+    Status: {
       type: DataTypes.ENUM("Active", "Paused", "Completed", "Cancelled"),
       allowNull: false,
       defaultValue: "Active",
-    },
-    createdBy: {
-      type: DataTypes.UUID,
-      allowNull: false,
-      references: {
-        model: "Users",
-        key: "id",
-      },
-      onDelete: "CASCADE",
     },
   },
   {
     tableName: "Campaigns",
     timestamps: true,
-    createdAt: "created_at",
-    updatedAt: "updated_at",
   }
 );
-
-// Define Associations
-const Lead = require("./leadModel.js");
-
-Campaign.hasMany(Lead, { foreignKey: "campaignId", as: "leads" });
-Lead.belongsTo(Campaign, { foreignKey: "campaignId", as: "campaign" });
 
 module.exports = Campaign;
