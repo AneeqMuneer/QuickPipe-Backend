@@ -25,22 +25,6 @@ const Campaign = sequelize.define(
       type: DataTypes.STRING,
       allowNull: false,
     },
-    Description: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-    },
-    StartDate: {
-      type: DataTypes.DATE,
-      allowNull: false,
-    },
-    EndDate: {
-      type: DataTypes.DATE,
-      allowNull: false,
-    },
-    Budget: {
-      type: DataTypes.FLOAT,
-      allowNull: true,
-    },
     Status: {
       type: DataTypes.ENUM("Active", "Paused", "Completed", "Cancelled"),
       allowNull: false,

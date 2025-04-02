@@ -1,12 +1,12 @@
 const express = require("express");
 const router = express.Router();
-const { createCampaign , getAllCampaigns , getCampaignById , updateCampaign , deleteCampaign } = require("../Controller/campaignController");
+const { CreateCampaign , GetAllCampaigns , GetCampaignById , UpdateCampaign , DeleteCampaign } = require("../Controller/campaignController");
 const { VerifyUser } = require("../Middleware/userAuth");
 
-router.post("/", VerifyUser , createCampaign);
-router.get("/", VerifyUser , getAllCampaigns);
-router.get("/:id", VerifyUser , getCampaignById);
-router.put("/:id", VerifyUser , updateCampaign);
-router.delete("/:id", VerifyUser , deleteCampaign);
+router.post("/campaign", VerifyUser , CreateCampaign);
+router.get("/campaign", VerifyUser , GetAllCampaigns);
+router.get("/campaign/:id", VerifyUser , GetCampaignById);
+router.put("/campaign/:id", VerifyUser , UpdateCampaign);
+router.delete("/campaign/:id", VerifyUser , DeleteCampaign);
 
 module.exports = router;
