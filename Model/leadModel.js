@@ -1,4 +1,4 @@
-const { DataTypes} = require('sequelize');
+const { DataTypes } = require('sequelize');
 const { sequelize } = require('../Data/db.js');
 
 const Lead = sequelize.define(
@@ -29,36 +29,31 @@ const Lead = sequelize.define(
       allowNull: true
     },
     Status: {
-      type:DataTypes.ENUM,
-      values: [
-        "Discovery",
-        "Evaluation",
-        "Proposal",
-        "Negotiation",
-        "Commit",
-        "Closed",
-      ],
+      type: DataTypes.ENUM("Discovery", "Evaluation", "Proposal", "Negotiation", "Commit", "Closed"),
       allowNull: false,
-      defaultValue: "Discovery",
+      defaultValue: "Discovery"
     },
     CampaignId: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
+      allowNull: true,
     },
-    Website:{
-      type:DataTypes.STRING,
-      allowNull:true,
+    Website: {
+      type: DataTypes.STRING,
+      allowNull: true,
     },
-    Title:{
-      type:DataTypes.STRING,
-      allowNull:true,
+    Title: {
+      type: DataTypes.STRING,
+      allowNull: true,
     },
-    Location:{
-      type:DataTypes.STRING,
+    Location: {
+      type: DataTypes.STRING,
+      allowNull: true,
     },
-    EmployeeCount:{
-      type:DataTypes.INTEGER,
-    }
+    LastInteraction: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
   },
   {
     tableName: 'Leads',

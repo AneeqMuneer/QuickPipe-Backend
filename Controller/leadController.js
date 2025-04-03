@@ -1,217 +1,125 @@
-const Lead = require("../Model/leadModel");
+const axios = require('axios');
 const catchAsyncError = require("../Middleware/asyncError");
 const ErrorHandler = require("../Utils/errorHandler");
-const axios = require('axios');
+
 require('dotenv').config();
-const APOLLO_API_KEY = process.env.APOLLO_API_KEY;
-const APOLLO_API_URL = 'https://api.apollo.io/v1/people/search';
 
-const getApolloHeaders = () => {
-  return {
-    'Content-Type': 'application/json',
-    'Cache-Control': 'no-cache',
-    'X-Api-Key': APOLLO_API_KEY
-  };
-};
+const { ExtractTitleAndLocation } = require('../Utils/leadUtils');
 
-function extractTitleAndLocation(description) {
-  // Common job title patterns - improved to capture standalone titles
-  const titlePatterns = [
-    // Standalone common titles
-    /\b(Developer|Engineer|Architect|Designer|Analyst|Specialist|Manager|Director|Consultant)\b/i,
+const Lead = require("../Model/leadModel");
 
-    // C-level executives
-    /\b(CEO|CTO|CFO|COO|CMO|CIO|CHRO|CSO)\b/i,
+exports.AddLeadToCampaign = catchAsyncError(async (req, res, next) => {
+    const { Name, Email, Phone, Company, CampaignId, Website, Title, Location } = req.body;
 
-    // Chief titles
-    /\b(Chief\s+[A-Za-z]+(\s+Officer)?)\b/i,
-
-    // VP titles
-    /\b(VP|Vice\s+President)(\s+of)?\s+([A-Za-z]+(\s+[A-Za-z]+)?)\b/i,
-
-    // Director titles
-    /\b(Director)(\s+of)?\s+([A-Za-z]+(\s+[A-Za-z]+)?)\b/i,
-
-    // Head titles
-    /\b(Head)(\s+of)?\s+([A-Za-z]+(\s+[A-Za-z]+)?)\b/i,
-
-    // Manager titles
-    /\b(Manager)(\s+of)?\s+([A-Za-z]+(\s+[A-Za-z]+)?)\b/i,
-
-    // Specialized roles
-    /\b([A-Za-z]+)\s+(Engineer|Developer|Architect|Designer|Analyst|Specialist)\b/i,
-
-    // Engineer/Developer with specialization
-    /\b(([A-Za-z]+(\s+[A-Za-z]+)?)\s+)?(Engineer|Developer)\b/i
-  ];
-
-  // Common location patterns (city, state, country)
-  const locationPatterns = [
-    /\b([A-Za-z\s]+),\s+([A-Za-z]{2})\b/i, // City, State abbreviation
-    /\b([A-Za-z\s]+),\s+([A-Za-z\s]+)\b/i, // City, State/Country
-    /\b(in|at|from)\s+([A-Za-z\s]+),\s+([A-Za-z\s]+)\b/i, // in/at/from City, State/Country
-    /\b(in|at|from)\s+([A-Za-z\s]+)\b/i // in/at/from Location
-  ];
-
-  let title = null;
-  let location = null;
-
-  // Extract title
-  for (const pattern of titlePatterns) {
-    const match = description.match(pattern);
-    if (match) {
-      title = match[0].trim();
-      break;
+    if (!Name || !CampaignId) {
+      return next(new ErrorHandler("Lead name is required", 400));
     }
-  }
+    
+    const Lead = await Lead.create({
+      Name: Name.trim(),
+      Email: Email || null,
+      Phone: Phone || null,
+      Company: Company || null,
+      CampaignId,
+      Website: Website || null,
+      Title: Title || null,
+      Location: Location || null
+    });
 
-  // Extract location
-  for (const pattern of locationPatterns) {
-    const match = description.match(pattern);
-    if (match) {
-      // If the pattern includes a preposition (in/at/from), grab the location part
-      if (match[1] && (match[1].toLowerCase() === 'in' || match[1].toLowerCase() === 'at' || match[1].toLowerCase() === 'from')) {
-        location = match.slice(2).join(', ').trim();
-      } else {
-        location = match[0].trim();
-      }
-      break;
+    res.status(201).json({
+      success: true,
+      message: "Lead created successfully",
+      Lead
+    });
+});
+
+exports.GetAllLeads = catchAsyncError(async (req, res, next) => {
+    const leads = await Lead.findAll();
+
+    res.status(200).json({
+      success: true,
+      leads
+    });
+});
+
+exports.GetLeadById = catchAsyncError(async (req, res, next) => {
+    const { leadid } = req.params;
+    const lead = await Lead.findByPk(leadid);
+
+    if (!lead) {
+      return next(new ErrorHandler("Lead not found", 404));
     }
-  }
 
-  return { title, location };
-}
-// Create a new Lead
-exports.createLead = catchAsyncError(async (req, res, next) => {
-  const { name, email, phone, company, campaignId, website, title, location, employeeCount } = req.body;
-
-  if (!name) {
-    return next(new ErrorHandler("Lead name is required", 400));
-  }
-
-  const lead = await Lead.create({
-    name,
-    email,
-    phone,
-    company,
-    campaignId,
-    website,
-    title,
-    location,
-    employeeCount
-  });
-
-  res.status(201).json({
-    success: true,
-    message: "Lead created successfully",
-    lead
-  });
+    res.status(200).json({
+      success: true,
+      lead
+    });
 });
 
-// Get all Leads
-exports.getAllLeads = catchAsyncError(async (req, res, next) => {
-  const leads = await Lead.findAll();
-  res.status(200).json({
-    success: true,
-    leads
-  });
+exports.UpdateLead = catchAsyncError(async (req, res, next) => {
+    const { leadid } = req.params;
+    const { Name, Email, Phone, Company, CampaignId, Website, Title, Location } = req.body;
+
+    const Lead = await Lead.findByPk(leadid);
+
+    if (!Lead) {
+      return next(new ErrorHandler("Lead not found", 404));
+    }
+
+    await Lead.update({
+      Name: Name.trim() || Lead.Name,
+      Email: Email || Lead.Email,
+      Phone: Phone || Lead.Phone,
+      Company: Company || Lead.Company,
+      CampaignId: CampaignId || Lead.CampaignId,
+      Website: Website || Lead.Website,
+      Title: Title || Lead.Title,
+      Location: Location || Lead.Location,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Lead updated successfully",
+      Lead
+    });
 });
 
-// Get a single Lead by ID
-exports.getLeadById = catchAsyncError(async (req, res, next) => {
-  const { id } = req.params;
-  const lead = await Lead.findByPk(id);
+exports.DeleteLead = catchAsyncError(async (req, res, next) => {
+    const { leadid } = req.params;
+    const lead = await Lead.findByPk(leadid);
 
-  if (!lead) {
-    return next(new ErrorHandler("Lead not found", 404));
-  }
+    if (!lead) {
+      return next(new ErrorHandler("Lead not found", 404));
+    }
 
-  res.status(200).json({
-    success: true,
-    lead
-  });
+    await lead.destroy();
+
+    res.status(200).json({
+      success: true,
+      message: "Lead deleted successfully"
+    });
 });
 
-// Update Lead details
-exports.updateLead = catchAsyncError(async (req, res, next) => {
-  const { id } = req.params;
-  const { name, email, phone, company, campaignId, website, title, location, employeeCount } = req.body;
+exports.UpdateLeadStatus = catchAsyncError(async (req, res, next) => {
+    const { leadid } = req.params;
+    const { status } = req.body;
 
-  const lead = await Lead.findByPk(id);
+    const lead = await Lead.findByPk(leadid);
 
-  if (!lead) {
-    return next(new ErrorHandler("Lead not found", 404));
-  }
+    if (!lead) {
+      return next(new ErrorHandler("Lead not found", 404));
+    }
 
-  await lead.update({
-    name,
-    email,
-    phone,
-    company,
-    campaignId,
-    website,
-    title,
-    location,
-    employeeCount
-  });
+    await lead.update({ status });
 
-  res.status(200).json({
-    success: true,
-    message: "Lead updated successfully",
-    lead
-  });
+    res.status(200).json({
+      success: true,
+      message: "Lead status updated successfully",
+      lead
+    });
 });
 
-// Delete a Lead
-exports.deleteLead = catchAsyncError(async (req, res, next) => {
-  const { id } = req.params;
-  const lead = await Lead.findByPk(id);
-
-  if (!lead) {
-    return next(new ErrorHandler("Lead not found", 404));
-  }
-
-  await lead.destroy();
-
-  res.status(200).json({
-    success: true,
-    message: "Lead deleted successfully"
-  });
-});
-
-// Update Lead Status
-exports.updateLeadStatus = catchAsyncError(async (req, res, next) => {
-  const { id } = req.params;
-  const { status } = req.body;
-
-  const validStatuses = [
-    "Discovery",
-    "Evaluation",
-    "Proposal",
-    "Negotiation",
-    "Commit",
-    "Closed"
-  ];
-
-  if (!validStatuses.includes(status)) {
-    return next(new ErrorHandler("Invalid status value", 400));
-  }
-
-  const lead = await Lead.findByPk(id);
-  if (!lead) {
-    return next(new ErrorHandler("Lead not found", 404));
-  }
-
-  await lead.update({ status });
-
-  res.status(200).json({
-    success: true,
-    message: "Lead status updated successfully",
-    lead
-  });
-});
-
-exports.searchLeads = catchAsyncError(async (req, res, next) => {
+exports.SearchLeads = catchAsyncError(async (req, res, next) => {
   try {
     const { query, domain } = req.body;
 
@@ -220,7 +128,7 @@ exports.searchLeads = catchAsyncError(async (req, res, next) => {
     }
 
     // Extract title and location from the query
-    const { title, location } = extractTitleAndLocation(query);
+    const { title, location } = ExtractTitleAndLocation(query);
     console.log('Extracted title:', title);
     console.log('Extracted location:', location);
 
@@ -249,7 +157,11 @@ exports.searchLeads = catchAsyncError(async (req, res, next) => {
     try {
       const apolloResponse = await axios.get(APOLLO_API_URL, {
         params: apolloParams,
-        headers: getApolloHeaders()
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'X-Api-Key': process.env.APOLLO_API_KEY,
+        }
       });
 
       // Return the results along with the extracted parameters

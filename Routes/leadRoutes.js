@@ -1,23 +1,23 @@
 const express = require("express");
 const { 
-    createLead, 
-    getAllLeads, 
-    getLeadById, 
-    updateLead, 
-    deleteLead, 
-    updateLeadStatus, 
-    searchLeads
+    AddLeadToCampaign, 
+    GetAllLeads, 
+    GetLeadById, 
+    UpdateLead, 
+    DeleteLead, 
+    UpdateLeadStatus, 
+    SearchLeads
 } = require("../Controller/leadController");
 const { VerifyUser } = require("../Middleware/userAuth");
 
 const router = express.Router();
 
-router.route("/CreateLead").post(VerifyUser,createLead);
-router.route("/GetAllLeads").get(VerifyUser,getAllLeads);
-router.route("/GetLead/:id").get(VerifyUser,getLeadById);
-router.route("/UpdateLead/:id").post(VerifyUser,updateLead);
-router.route("/DeleteLead/:id").delete(VerifyUser,deleteLead);
-router.route("/UpdateLeadStatus/:id").patch(VerifyUser,updateLeadStatus);
-router.route('/searchLeads').post(VerifyUser,searchLeads);
+router.route("/AddLeadToCampaign").post(VerifyUser,AddLeadToCampaign);
+router.route("/GetAllLeads").get(VerifyUser,GetAllLeads);
+router.route("/GetLead/:leadid").get(VerifyUser,GetLeadById);
+router.route("/UpdateLead/:leadid").post(VerifyUser,UpdateLead);
+router.route("/DeleteLead/:leadid").delete(VerifyUser,DeleteLead);
+router.route("/UpdateLeadStatus/:leadid").patch(VerifyUser,UpdateLeadStatus);
+router.route('/SearchLeads').post(VerifyUser,SearchLeads);
 
 module.exports = router;
