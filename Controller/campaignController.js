@@ -6,6 +6,7 @@ const LeadModel = require("../Model/leadModel");
 
 exports.CreateCampaign = catchAsyncError(async (req, res, next) => {
     const { Name } = req.body;
+    console.log(req.user.User);
 
     if (!Name) {
         return next(new ErrorHandler("Please fill all the required fields.", 400));
@@ -23,11 +24,15 @@ exports.CreateCampaign = catchAsyncError(async (req, res, next) => {
 });
 
 exports.GetAllCampaigns = catchAsyncError(async (req, res, next) => {
-    const campaigns = await CampaignModel.findAll();
+    const campaigns = await CampaignModel.findAll({
+        where: {
+            WorkspaceId: req.user.User.CurrentWorkspaceId,
+        }
+    });
 
     res.status(200).json({
       success: true,
-      data: campaigns,
+      campaigns,
     });
 });
 
@@ -50,7 +55,7 @@ exports.GetCampaignById = catchAsyncError(async (req, res, next) => {
     });
 });
 
-exports.UpdateCampaign = catchAsyncError(async (req, res) => {
+exports.UpdateCampaign = catchAsyncError(async (req, res, next) => {
     const { Name } = req.body;
     const campaignId = req.params.campaignid;
     const workspaceId = req.user.User.CurrentWorkspaceId;

@@ -35,7 +35,6 @@ const Lead = sequelize.define(
     },
     CampaignId: {
       type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
       allowNull: true,
     },
     Website: {
