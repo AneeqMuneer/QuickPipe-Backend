@@ -213,7 +213,7 @@ exports.updateLeadStatus = catchAsyncError(async (req, res, next) => {
 
 exports.searchLeads = catchAsyncError(async (req, res, next) => {
   try {
-    const { query, domain } = req.body;
+    const { query, domain, page = 1, per_page = 5 } = req.body;
 
     if (!query) {
       return res.status(400).json({ error: 'No search query provided' });
@@ -224,10 +224,11 @@ exports.searchLeads = catchAsyncError(async (req, res, next) => {
     console.log('Extracted title:', title);
     console.log('Extracted location:', location);
 
-    console.log(process.env.APOLLO_API_KEY)
+    console.log(process.env.APOLLO_API_KEY);
     // Prepare Apollo API parameters
     const apolloParams = {
-      per_page: 5
+      per_page: parseInt(per_page),
+      page: parseInt(page)
     };
 
     // Add extracted data as arrays (even if single values)
@@ -252,7 +253,15 @@ exports.searchLeads = catchAsyncError(async (req, res, next) => {
         headers: getApolloHeaders()
       });
 
-      // Return the results along with the extracted parameters
+      // Get pagination info from Apollo response
+      const paginationInfo = {
+        currentPage: parseInt(page),
+        perPage: parseInt(per_page),
+        totalResults: apolloResponse.data.pagination?.total_entries || 0,
+        totalPages: apolloResponse.data.pagination?.total_pages || 1
+      };
+
+      // Return the results along with the extracted parameters and pagination info
       return res.json({
         originalQuery: query,
         extractedParameters: {
@@ -260,6 +269,7 @@ exports.searchLeads = catchAsyncError(async (req, res, next) => {
           locations: location ? [location] : [],
           domains: domain ? [domain] : []
         },
+        pagination: paginationInfo,
         results: apolloResponse.data
       });
 
