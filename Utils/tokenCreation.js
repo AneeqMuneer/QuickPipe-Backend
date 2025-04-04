@@ -1,5 +1,5 @@
-const TokenCreation = (user, statusCode, res) => {
-    const token = user.getJWTToken();
+const TokenCreation = (User, statusCode, res) => {
+    const token = User.getJWTToken();
 
     const options = {
         expires: new Date(
@@ -10,7 +10,7 @@ const TokenCreation = (user, statusCode, res) => {
     
     res.status(statusCode).cookie("token", token, options).json({
         success: true,
-        User: user,
+        User,
         token,
     });
 };
