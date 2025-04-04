@@ -9,11 +9,16 @@ const Sequence = sequelize.define('Sequence', {
     },
     CampaignId: {
         type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        allowNull: false
     },
     Emails: {
         type: DataTypes.JSONB,
         allowNull: true,
+        defaultValue: [{
+            Name: "Step 1",
+            Subject: "",
+            Body: "",
+        }],
     },
 }, {
     tableName: 'Sequences',

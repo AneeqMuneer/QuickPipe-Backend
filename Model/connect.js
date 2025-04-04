@@ -4,8 +4,10 @@ const { dbConnect } = require('../Data/db.js');
 const UserModel = require('../Model/userModel');
 const WorkspaceModel = require('../Model/workspaceModel');
 const MemberModel = require("../Model/memberModel.js");
-const CampaignModel = require("./campaignModel.js");
-const LeadModel = require("./leadModel.js");
+const CampaignModel = require("../Model/campaignModel.js");
+const LeadModel = require("../Model/leadModel.js");
+const SequenceModel = require("../Model/sequenceModel.js");
+const ScheduleModel = require("../Model/scheduleModel.js");
 
 
 
@@ -26,6 +28,11 @@ WorkspaceModel.belongsTo(CampaignModel, { foreignKey: 'id', targetKey: "Workspac
 CampaignModel.hasMany(LeadModel, { foreignKey: 'CampaignId', sourceKey: "id", onDelete: 'CASCADE' });
 LeadModel.belongsTo(CampaignModel, { foreignKey: 'CampaignId', targetKey: "id" });
 
+CampaignModel.hasOne(SequenceModel, { foreignKey: 'CampaignId', sourceKey: "id", onDelete: 'CASCADE' });
+SequenceModel.belongsTo(CampaignModel, { foreignKey: 'CampaignId', targetKey: "id" });
+
+CampaignModel.hasOne(ScheduleModel, { foreignKey: 'CampaignId', sourceKey: "id", onDelete: 'CASCADE' });
+ScheduleModel.belongsTo(CampaignModel, { foreignKey: 'CampaignId', targetKey: "id" });
 
 
 

@@ -3,6 +3,7 @@ const ErrorHandler = require("../Utils/errorHandler");
 
 const CampaignModel = require("../Model/campaignModel");
 const LeadModel = require("../Model/leadModel");
+const SequenceModel = require("../Model/sequenceModel");
 
 exports.CreateCampaign = catchAsyncError(async (req, res, next) => {
     const { Name } = req.body;
@@ -17,9 +18,19 @@ exports.CreateCampaign = catchAsyncError(async (req, res, next) => {
         Name,
     });
 
+    const sequence = await SequenceModel.create({
+        CampaignId: campaign.id,
+    });
+
+    const schedule = await ScheduleModel.create({
+        CampaignId: campaign.id,
+    })
+
     res.status(201).json({
         success: true,
         campaign,
+        sequence,
+        schedule
     });
 });
 
@@ -37,38 +48,16 @@ exports.GetAllCampaigns = catchAsyncError(async (req, res, next) => {
 });
 
 exports.GetCampaignById = catchAsyncError(async (req, res, next) => {
-    const campaign = await CampaignModel.findByPk(req.params.campaignid);
-    const workspaceId = req.user.User.CurrentWorkspaceId;
-
-    if (!campaign) {
-        return next(new ErrorHandler("Campaign not found.", 404));
-    }
-
-    if (campaign.WorkspaceId !== workspaceId) {
-        return next(new ErrorHandler("Invalid campaign.", 403));
-    }
-
     res.status(200).json({
         success: true,
         message: "Campaign found successfully",
-        campaign,
+        campaign: req.campaign,
     });
 });
 
 exports.UpdateCampaign = catchAsyncError(async (req, res, next) => {
     const { Name } = req.body;
-    const campaignId = req.params.campaignid;
-    const workspaceId = req.user.User.CurrentWorkspaceId;
-    
-    const campaign = await CampaignModel.findByPk(campaignId);
-    
-    if (!campaign) {
-        return next(new ErrorHandler("Campaign not found.", 404));
-    }
-    
-    if (campaign.WorkspaceId !== workspaceId) {
-      return next(new ErrorHandler("Invalid campaign.", 403));
-    }
+    const campaign = req.campaign;
 
     if (!Name) {
         return next(new ErrorHandler("Please fill all the required fields.", 400));
@@ -86,18 +75,7 @@ exports.UpdateCampaign = catchAsyncError(async (req, res, next) => {
 });
 
 exports.DeleteCampaign = catchAsyncError(async (req , res , next) => {
-    const campaignId = req.params.campaignid;
-    const workspaceId = req.user.User.CurrentWorkspaceId;
-  
-    const campaign = await CampaignModel.findByPk(campaignId);
-      
-    if (!campaign) {
-        return next(new ErrorHandler("Campaign not found.", 404));
-    }
-    
-    if (campaign.WorkspaceId !== workspaceId) {
-      return next(new ErrorHandler("Invalid campaign.", 403));
-    }
+    const campaign = req.campaign;
 
     await campaign.destroy();
 
@@ -107,23 +85,14 @@ exports.DeleteCampaign = catchAsyncError(async (req , res , next) => {
     });
 });
 
-exports.GetCampaignLeads = catchAsyncError(async (req , res , next) => {
-    const campaignId = req.params.campaignid;
-    const workspaceId = req.user.User.CurrentWorkspaceId;
+/* PEOPLE TAB */
 
-    const campaign = await CampaignModel.findByPk(campaignId);
-    
-    if (!campaign) {
-        return next(new ErrorHandler("Campaign not found.", 404));
-    }
-    
-    if (campaign.WorkspaceId !== workspaceId) {
-      return next(new ErrorHandler("Invalid campaign.", 403));
-    }
+exports.GetCampaignLeads = catchAsyncError(async (req , res , next) => {
+    const campaign = req.campaign;
 
     const leads = await LeadModel.findAll({
         where: {
-            CampaignId: campaignId,
+            CampaignId: campaign.id,
         },
     });
 
@@ -133,3 +102,83 @@ exports.GetCampaignLeads = catchAsyncError(async (req , res , next) => {
         leads,
     });
 });
+
+/* SEQUENCE TAB */
+
+exports.GetCampaignSequence = catchAsyncError(async (req , res , next) => {
+    const campaign = req.campaign;
+
+    const sequence = await SequenceModel.findOne({
+        where: {
+            CampaignId: campaign.id,
+        },
+    });
+
+    res.status(200).json({
+        success: true,
+        message: "Sequence found successfully",
+        sequence,
+    });
+});
+
+exports.UpdateCampaignSequence = catchAsyncError(async (req , res , next) => {
+    const { Emails } = req.body;
+    const campaign = req.campaign;
+
+    const sequence = await SequenceModel.findOne({
+        where: {
+            CampaignId: campaign.id,
+        },
+    });
+
+    sequence.Emails = Emails;
+
+    await sequence.save();
+
+    res.status(200).json({
+        success: true,
+        message: "Sequence updated successfully",
+        sequence,
+    });
+});
+
+/* SCHEDULE TAB */
+
+exports.GetCampaignSchedule = catchAsyncError(async (req , res , next) => {
+    const campaign = req.campaign;
+
+    const schedule = await ScheduleModel.findOne({
+        where: {
+            CampaignId: campaign.id,
+        },
+    });
+
+    res.status(200).json({
+        success: true,
+        message: "Schedule found successfully",
+        schedule,
+    });
+});
+
+exports.UpdateCampaignSchedule = catchAsyncError(async (req , res , next) => {
+    const { Schedule } = req.body;
+    const campaign = req.campaign;
+
+    const schedule = await ScheduleModel.findOne({
+        where: {
+            CampaignId: campaign.id,
+        },
+    });
+
+    schedule.Schedule = Schedule;
+
+    await schedule.save();
+
+    res.status(200).json({
+        success: true,
+        message: "Schedule updated successfully",
+        schedule,
+    });
+});
+
+/* OPTIONS TAB */

@@ -6,35 +6,48 @@ require('dotenv').config();
 
 const { ExtractTitleAndLocation } = require('../Utils/leadUtils');
 
-const Lead = require("../Model/leadModel");
+const LeadModel = require("../Model/leadModel");
+const CampaignModel = require("../Model/campaignModel");
 
-exports.AddLeadToCampaign = catchAsyncError(async (req, res, next) => {
-    const { Name, Email, Phone, Company, CampaignId, Website, Title, Location } = req.body;
+exports.AddLeadsToCampaign = catchAsyncError(async (req, res, next) => {
+    const { Leads , CampaignId } = req.body;
 
-    if (!Name || !CampaignId) {
-      return next(new ErrorHandler("Lead name is required", 400));
+    if (!Leads || Leads.length === 0) {
+        return next(new ErrorHandler("Please select at least one lead", 400));
     }
-    
-    const Lead = await Lead.create({
-      Name: Name.trim(),
-      Email: Email || null,
-      Phone: Phone || null,
-      Company: Company || null,
-      CampaignId,
-      Website: Website || null,
-      Title: Title || null,
-      Location: Location || null
-    });
+
+    if (!CampaignId) {
+        return next(new ErrorHandler("Please select a campaign first", 400));
+    }
+
+    const campaign = await CampaignModel.findByPk(CampaignId);
+
+    if (!campaign) {
+        return next(new ErrorHandler("Campaign not found", 404));
+    }
+
+    if (campaign.WorkspaceId !== req.user.User.CurrentWorkspaceId) {
+        return next(new ErrorHandler("Invalid Campaign", 403));
+    }
+
+    for (let i = 0; i < Leads.length; i++) {
+        if (!Leads[i].Name) {
+            return next(new ErrorHandler("Lead doesn't have a name", 400));
+        }
+        Leads[i].CampaignId = CampaignId;
+    }
+
+    const leads = await LeadModel.bulkCreate(Leads);
 
     res.status(201).json({
-      success: true,
-      message: "Lead created successfully",
-      Lead
+        success: true,
+        message: "Lead created successfully",
+        leads
     });
 });
 
 exports.GetAllLeads = catchAsyncError(async (req, res, next) => {
-    const leads = await Lead.findAll();
+    const leads = await LeadModel.findAll();
 
     res.status(200).json({
       success: true,
@@ -44,7 +57,7 @@ exports.GetAllLeads = catchAsyncError(async (req, res, next) => {
 
 exports.GetLeadById = catchAsyncError(async (req, res, next) => {
     const { leadid } = req.params;
-    const lead = await Lead.findByPk(leadid);
+    const lead = await LeadModel.findByPk(leadid);
 
     if (!lead) {
       return next(new ErrorHandler("Lead not found", 404));
@@ -60,21 +73,21 @@ exports.UpdateLead = catchAsyncError(async (req, res, next) => {
     const { leadid } = req.params;
     const { Name, Email, Phone, Company, CampaignId, Website, Title, Location } = req.body;
 
-    const Lead = await Lead.findByPk(leadid);
+    const Lead = await LeadModel.findByPk(leadid);
 
     if (!Lead) {
       return next(new ErrorHandler("Lead not found", 404));
     }
 
-    await Lead.update({
-      Name: Name.trim() || Lead.Name,
-      Email: Email || Lead.Email,
-      Phone: Phone || Lead.Phone,
-      Company: Company || Lead.Company,
-      CampaignId: CampaignId || Lead.CampaignId,
-      Website: Website || Lead.Website,
-      Title: Title || Lead.Title,
-      Location: Location || Lead.Location,
+    await LeadModel.update({
+      Name: Name.trim() || LeadModel.Name,
+      Email: Email || LeadModel.Email,
+      Phone: Phone || LeadModel.Phone,
+      Company: Company || LeadModel.Company,
+      CampaignId: CampaignId || LeadModel.CampaignId,
+      Website: Website || LeadModel.Website,
+      Title: Title || LeadModel.Title,
+      Location: Location || LeadModel.Location,
     });
 
     res.status(200).json({
@@ -86,13 +99,13 @@ exports.UpdateLead = catchAsyncError(async (req, res, next) => {
 
 exports.DeleteLead = catchAsyncError(async (req, res, next) => {
     const { leadid } = req.params;
-    const lead = await Lead.findByPk(leadid);
+    const lead = await LeadModel.findByPk(leadid);
 
     if (!lead) {
       return next(new ErrorHandler("Lead not found", 404));
     }
 
-    await lead.destroy();
+    await leadModel.destroy();
 
     res.status(200).json({
       success: true,
@@ -104,13 +117,13 @@ exports.UpdateLeadStatus = catchAsyncError(async (req, res, next) => {
     const { leadid } = req.params;
     const { status } = req.body;
 
-    const lead = await Lead.findByPk(leadid);
+    const lead = await LeadModel.findByPk(leadid);
 
     if (!lead) {
       return next(new ErrorHandler("Lead not found", 404));
     }
 
-    await lead.update({ status });
+    await LeadModel.update({ status });
 
     res.status(200).json({
       success: true,

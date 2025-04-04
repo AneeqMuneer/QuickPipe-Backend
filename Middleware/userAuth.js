@@ -1,5 +1,5 @@
 const asyncError = require("../Middleware/asyncError.js");
-const errorHandler = require("../Utils/errorHandler");
+const ErrorHandler = require("../Utils/errorHandler");
 const jwt = require("jsonwebtoken");
 const UserModel = require("../Model/userModel.js");
 const dotenv = require("dotenv");
@@ -9,7 +9,7 @@ dotenv.config({ path: "./config/config.env" });
 exports.VerifyUser = asyncError(async (req, res, next) => {
     if (!req.header("Authorization")) {
         return next(
-            new errorHandler("Please login to access this resource", 401)
+            new ErrorHandler("Please login to access this resource", 401)
         );
     }
 
@@ -17,7 +17,7 @@ exports.VerifyUser = asyncError(async (req, res, next) => {
 
     if (!token) {
         return next(
-            new errorHandler("Please login to access this resource", 401)
+            new ErrorHandler("Please login to access this resource", 401)
         );
     }
 
@@ -32,7 +32,7 @@ exports.VerifyUser = asyncError(async (req, res, next) => {
         next();
     } else {
         return next(
-            new errorHandler(
+            new ErrorHandler(
                 "Invalid Token Kindly Login Again Or Enter Correct Credentials",
                 401
             )

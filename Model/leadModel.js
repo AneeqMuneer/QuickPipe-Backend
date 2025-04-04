@@ -18,11 +18,13 @@ const Lead = sequelize.define(
       allowNull: true,
       validate: {
         isEmail: true
-      }
+      },
+      unique: true
     },
     Phone: {
       type: DataTypes.STRING(50),
-      allowNull: true
+      allowNull: true,
+      unique: true,
     },
     Company: {
       type: DataTypes.STRING,

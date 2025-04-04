@@ -1,6 +1,6 @@
 const express = require("express");
 const { 
-    AddLeadToCampaign, 
+    AddLeadsToCampaign, 
     GetAllLeads, 
     GetLeadById, 
     UpdateLead, 
@@ -12,7 +12,7 @@ const { VerifyUser } = require("../Middleware/userAuth");
 
 const router = express.Router();
 
-router.route("/AddLeadToCampaign").post(VerifyUser,AddLeadToCampaign);
+router.route("/AddLeadsToCampaign").post(VerifyUser,AddLeadsToCampaign);
 router.route("/GetAllLeads").get(VerifyUser,GetAllLeads);
 router.route("/GetLead/:leadid").get(VerifyUser,GetLeadById);
 router.route("/UpdateLead/:leadid").post(VerifyUser,UpdateLead);
