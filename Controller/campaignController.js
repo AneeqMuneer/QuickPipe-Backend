@@ -4,6 +4,7 @@ const ErrorHandler = require("../Utils/errorHandler");
 const CampaignModel = require("../Model/campaignModel");
 const LeadModel = require("../Model/leadModel");
 const SequenceModel = require("../Model/sequenceModel");
+const ScheduleModel = require("../Model/scheduleModel");
 
 exports.CreateCampaign = catchAsyncError(async (req, res, next) => {
     const { Name } = req.body;

@@ -23,12 +23,12 @@ const Lead = sequelize.define(
     },
     Phone: {
       type: DataTypes.STRING(50),
-      allowNull: true,
+      allowNull: true, // aa rha hai
       unique: true,
     },
     Company: {
       type: DataTypes.STRING,
-      allowNull: true
+      allowNull: true // aa rha hai
     },
     Status: {
       type: DataTypes.ENUM("Discovery", "Evaluation", "Proposal", "Negotiation", "Commit", "Closed"),
@@ -41,15 +41,15 @@ const Lead = sequelize.define(
     },
     Website: {
       type: DataTypes.STRING,
-      allowNull: true,
+      allowNull: true, // aa rha hai
     },
     Title: {
       type: DataTypes.STRING,
-      allowNull: true,
+      allowNull: true, // aa rha hai
     },
     Location: {
       type: DataTypes.STRING,
-      allowNull: true,
+      allowNull: true, // aa rha hai
     },
     LastInteraction: {
       type: DataTypes.DATE,
