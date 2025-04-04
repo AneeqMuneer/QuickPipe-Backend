@@ -3,7 +3,7 @@ const nodemailer = require('nodemailer');
 const AppLogoPath = process.env.COMPANY_LOGO;
 
 exports.SendInviteMail = async (User, Workspace) => {
-    const inviteUrl = `${process.env.FRONTEND_URL}/member/AcceptInvitation?wkid=${Workspace.id}&usid=${User.id}`;
+    const inviteUrl = `${process.env.FRONTEND_URL}/invitationAccept/${Workspace.id}/${User.id}`;
     try {
         const transporter = nodemailer.createTransport({
             service: 'gmail',

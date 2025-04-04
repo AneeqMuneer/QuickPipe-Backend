@@ -100,7 +100,7 @@ exports.GetWorkspaceMembers = catchAsyncError(async (req , res , next) => {
 });
 
 exports.VerifyInvitation = catchAsyncError(async (req , res , next) => {
-    const { wkid , usid } = req.query;
+    const { wkid , usid } = req.body;
 
     const Member = await MemberModel.findOne({
         where: {
@@ -113,15 +113,22 @@ exports.VerifyInvitation = catchAsyncError(async (req , res , next) => {
         return next(new ErrorHandler("Invite not found" , 400));
     }
 
+    const User = await UserModel.findByPk(usid);
+
+    if (!User) {
+        return next(new ErrorHandler("User not found" , 400));
+    }
+
     res.status(200).json({
         success: true,
         message: "Invite link is valid",
-        Member
+        Role: Member.Role,
+        Username: User.FirstName + " " + User.LastName,
     });
 });
 
 exports.AcceptInvitation = catchAsyncError(async (req , res , next) => {
-    const { wkid , usid } = req.query;
+    const { wkid , usid } = req.body;
 
     const Member = await MemberModel.findOne({
         where: {
@@ -149,13 +156,11 @@ exports.AcceptInvitation = catchAsyncError(async (req , res , next) => {
     res.status(200).json({
         success: true,
         message: "Invite accepted",
-        Member,
-        User
     });
 });
 
 exports.RejectInvitation = catchAsyncError(async (req , res , next) => {
-    const { wkid , usid } = req.query;
+    const { wkid , usid } = req.body;
 
     const Member = await MemberModel.findOne({
         where: {
