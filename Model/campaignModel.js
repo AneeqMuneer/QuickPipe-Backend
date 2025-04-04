@@ -11,15 +11,15 @@ const Campaign = sequelize.define(
     },
     SequenceId: {
       type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
+      allowNull: true,
     },
     ScheduleId: {
       type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
+      allowNull: true,
     },
     WorkspaceId: {
       type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
+      allowNull: false,
     },
     Name: {
       type: DataTypes.STRING,
