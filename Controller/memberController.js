@@ -119,11 +119,18 @@ exports.VerifyInvitation = catchAsyncError(async (req , res , next) => {
         return next(new ErrorHandler("User not found" , 400));
     }
 
+    const Workspace = await WorkspaceModel.findByPk(wkid);
+
+    if (!Workspace) {
+        return next(new ErrorHandler("Workspace not found" , 400));
+    }
+
     res.status(200).json({
         success: true,
         message: "Invite link is valid",
         Role: Member.Role,
         Username: User.FirstName + " " + User.LastName,
+        WorkspaceName: Workspace.Name,
     });
 });
 
