@@ -100,7 +100,7 @@ exports.GetWorkspaceMembers = catchAsyncError(async (req , res , next) => {
 });
 
 exports.VerifyInvitation = catchAsyncError(async (req , res , next) => {
-    const { wkid , usid } = req.body;
+    const { wkid , usid } = req.params;
 
     const Member = await MemberModel.findOne({
         where: {
