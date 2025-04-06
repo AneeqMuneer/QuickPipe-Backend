@@ -130,7 +130,7 @@ exports.VerifyInvitation = catchAsyncError(async (req , res , next) => {
         message: "Invite link is valid",
         Role: Member.Role,
         Username: User.FirstName + " " + User.LastName,
-        WorkspaceName: Workspace.Name,
+        WorkspaceName: Workspace.WorkspaceName,
     });
 });
 
