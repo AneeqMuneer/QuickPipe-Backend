@@ -10,41 +10,141 @@ const LeadModel = require("../Model/leadModel");
 const CampaignModel = require("../Model/campaignModel");
 
 exports.AddLeadsToCampaign = catchAsyncError(async (req, res, next) => {
-    const { Leads , CampaignId } = req.body;
+  const { Leads, CampaignId } = req.body;
 
-    if (!Leads || Leads.length === 0) {
-        return next(new ErrorHandler("Please select at least one lead", 400));
-    }
+  // Validate inputs
+  if (!Leads || !Array.isArray(Leads) || Leads.length === 0) {
+      return next(new ErrorHandler("Please select at least one lead", 400));
+  }
 
-    if (!CampaignId) {
-        return next(new ErrorHandler("Please select a campaign first", 400));
-    }
+  if (!CampaignId) {
+      return next(new ErrorHandler("Please select a campaign first", 400));
+  }
 
-    const campaign = await CampaignModel.findByPk(CampaignId);
+  // Find campaign and validate ownership
+  const campaign = await CampaignModel.findByPk(CampaignId);
 
-    if (!campaign) {
-        return next(new ErrorHandler("Campaign not found", 404));
-    }
+  if (!campaign) {
+      return next(new ErrorHandler("Campaign not found", 404));
+  }
 
-    if (campaign.WorkspaceId !== req.user.User.CurrentWorkspaceId) {
-        return next(new ErrorHandler("Invalid Campaign", 403));
-    }
+  if (campaign.WorkspaceId !== req.user.User.CurrentWorkspaceId) {
+      return next(new ErrorHandler("You don't have permission to add leads to this campaign", 403));
+  }
 
-    for (let i = 0; i < Leads.length; i++) {
-        if (!Leads[i].Name) {
-            return next(new ErrorHandler("Lead doesn't have a name", 400));
-        }
-        Leads[i].CampaignId = CampaignId;
-    }
+  // Enrich leads with Apollo API
+  const enrichmentResults = {
+      totalLeads: Leads.length,
+      enriched: 0,
+      failed: 0,
+      processedLeads: []
+  };
 
-    const leads = await LeadModel.bulkCreate(Leads);
+  for (let i = 0; i < Leads.length; i++) {
+      const lead = Leads[i];
+      
+      // Validate each lead has Apollo ID and name
+      if (!lead.id) {
+          console.error(`Lead at index ${i} is missing Apollo ID, skipping enrichment`);
+          enrichmentResults.failed++;
+          continue;
+      }
 
-    res.status(201).json({
-        success: true,
-        message: "Lead created successfully",
-        leads
-    });
+      if (!lead.name && (!lead.first_name || !lead.last_name)) {
+          console.error(`Lead at index ${i} is missing name information, skipping enrichment`);
+          enrichmentResults.failed++;
+          continue;
+      }
+
+      try {
+          // Enrich the lead with Apollo's people enrichment API
+          const enrichedData = await enrichLeadWithApollo(lead.id);
+          enrichmentResults.enriched++;
+          
+          // Map Apollo data to our database schema
+          const processedLead = {
+              id: undefined, // Use provided ID or let DB generate one
+              Name: enrichedData.name || `${enrichedData.first_name || ''} ${enrichedData.last_name || ''}`.trim(),
+              Email: enrichedData.email || null,
+              Phone: enrichedData.organization?.phone || null,
+              Company: enrichedData.organization?.name || null,
+              Status: "Discovery", // Default value
+              CampaignId: CampaignId,
+              Website: enrichedData.organization?.website_url || null,
+              Title: enrichedData.title || null,
+              Location: [enrichedData.city, enrichedData.state, enrichedData.country]
+                  .filter(Boolean)
+                  .join(', ') || null,
+              EmployeeCount: enrichedData.organization?.estimated_num_employees || null
+          };
+
+          enrichmentResults.processedLeads.push(processedLead);
+      } catch (error) {
+          console.error(`Failed to enrich lead ${lead.id}: ${error.message}`);
+          enrichmentResults.failed++;
+      }
+  }
+
+  // Check if we have any successfully enriched leads
+  if (enrichmentResults.processedLeads.length === 0) {
+      return next(new ErrorHandler("Failed to enrich any leads", 400));
+  }
+
+  // Insert the enriched leads in bulk
+  try {
+      const leads = await LeadModel.bulkCreate(enrichmentResults.processedLeads, {
+          validate: true,
+          returning: true
+      });
+
+      // Update campaign metadata
+      await campaign.increment('LeadCount', { by: leads.length });
+      await campaign.update({ LastUpdated: new Date() });
+
+      res.status(201).json({
+          success: true,
+          message: `${leads.length} leads added to campaign successfully`,
+          enrichmentSummary: {
+              total: enrichmentResults.totalLeads,
+              enriched: enrichmentResults.enriched,
+              failed: enrichmentResults.failed
+          },
+          leads
+      });
+  } catch (error) {
+      if (error.name === 'SequelizeValidationError') {
+          const validationErrors = error.errors.map(err => err.message);
+          return next(new ErrorHandler(`Validation error: ${validationErrors.join(', ')}`, 400));
+      }
+      throw error;
+  }
 });
+
+/**
+* Enriches a lead with Apollo's people enrichment API
+* @param {string} apolloId - Apollo ID of the person to enrich
+* @returns {Promise<Object>} Enriched lead data from Apollo
+*/
+async function enrichLeadWithApollo(apolloId) {
+  const APOLLO_ENRICH_URL = 'https://api.apollo.io/v1/people/match';
+  
+  try {
+      const response = await axios.post(APOLLO_ENRICH_URL, {
+          api_key: process.env.APOLLO_API_KEY,
+          id: apolloId,
+          reveal_personal_emails: false // Set to true if you want personal emails as well
+      });
+      console.log(response.data);
+      if (!response.data || !response.data.person) {
+          throw new Error('Invalid response from Apollo enrichment API');
+      }
+
+      return response.data.person;
+  } catch (error) {
+      console.error('Apollo enrichment API error:', error.message);
+      throw new Error(`Failed to enrich lead: ${error.message}`);
+  }
+}
 
 exports.GetAllLeads = catchAsyncError(async (req, res, next) => {
     const leads = await LeadModel.findAll();
