@@ -98,7 +98,6 @@ exports.AddLeadsToCampaign = catchAsyncError(async (req, res, next) => {
       });
 
       // Update campaign metadata
-      await campaign.increment('LeadCount', { by: leads.length });
       await campaign.update({ LastUpdated: new Date() });
 
       res.status(201).json({
