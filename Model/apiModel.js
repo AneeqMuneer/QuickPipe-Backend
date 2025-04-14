@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../Data/db.js');
+const { types } = require('pg');
 
 const API = sequelize.define('API', {
     id: {
@@ -15,10 +16,14 @@ const API = sequelize.define('API', {
         type: DataTypes.STRING,
         allowNull: true,
     },
-    GoogleCalendarAPI: {
+    GoogleCalendarAccessToken: {
         type: DataTypes.STRING,
         allowNull: true,
-    },
+      },
+      GoogleCalendarRefreshToken: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
     OpenAiAPI: {
         type: DataTypes.STRING,
         allowNull: true,

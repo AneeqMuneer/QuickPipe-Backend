@@ -17,11 +17,11 @@ const Task = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: true,
     },
-    Date: {
+    eventDate: {
       type: DataTypes.DATEONLY,
       allowNull: false,
     },
-    Time: {
+    eventTime: {
       type: DataTypes.TIME,
       allowNull: true,
     },

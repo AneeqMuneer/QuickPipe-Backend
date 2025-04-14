@@ -7,7 +7,9 @@ dotenv.config({ path: "../config/config.env" });
 
 // Import models
 const TaskModel = require("../Model/taskModel");
-const UserModel = require("../Model/userModel");
+// const UserModel = require("../Model/userModel");
+const ApiModel = require('../Model/apiModel');
+const {refreshGoogleAccessToken} = require('../Utils/calendarUtils');
 
 const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -37,12 +39,12 @@ exports.connectGoogleCalendar = catchAsyncError(async (req, res, next) => {
     if (!req.user) {
         return res.status(401).json({ success: false, message: "User not authenticated" });
       }
-    console.log(req.user.User.id)
-    const state = encodeURIComponent(JSON.stringify({ userId: req.user.User.id }));
+    console.log(req.user.User.CurrentWorkspaceId)
+    const state = encodeURIComponent(JSON.stringify({ CurrentWorkspaceId: req.user.User.CurrentWorkspaceId }));
     // Generate the Google authentication URL
     const url = oauth2Client.generateAuthUrl({
         access_type: 'offline', // Request offline access to receive a refresh token
-        scope:['https://www.googleapis.com/auth/calendar.events'],
+        scope:['https://www.googleapis.com/auth/calendar'],
         prompt:'consent',
         state
       });
@@ -66,24 +68,23 @@ exports.handleOAuthCallback = catchAsyncError(async (req, res,next) => {
         });
       }
       console.log("state variable ",state);
-      const { userId } = JSON.parse(decodeURIComponent(state));
-      console.log("decoded userid ",userId);
+      const { CurrentWorkspaceId } = JSON.parse(decodeURIComponent(state));
+      console.log("decoded CurrentWorkspaceId ",CurrentWorkspaceId);
   
       // Exchange the code for tokens
       const { tokens } = await oauth2Client.getToken(code);
       oauth2Client.setCredentials(tokens);
       
       // Store tokens in session or database
-      const user = await UserModel.findOne({
-        where:{id:userId}
+      const api = await ApiModel.findOne({
+        where:{WorkspaceId:CurrentWorkspaceId}
       });
 
+
       //workspace ke andar
-      await user.update({
-        googleAuthCode: code,
-        googleAccessToken:tokens.access_token,
-        googleRefreshToken:tokens.refresh_token,
-        googleTokenExpiry:tokens.expiry_date
+      await api.update({
+        GoogleCalendarAccessToken:tokens.access_token,
+        GoogleCalendarRefreshToken:tokens.refresh_token,
       })
 
       // req.session.tokens = tokens; // If using session storage
@@ -99,58 +100,85 @@ exports.handleOAuthCallback = catchAsyncError(async (req, res,next) => {
 
 // Create a new event and sync with Google Calendar
 exports.createEvent = catchAsyncError(async (req, res, next) => {
-  const { title, description, startDateTime, endDateTime, location, attendees, reminderMinutes } = req.body;
-  const userId = req.user.id;
+  const { Task_Title, Description, eventTime, eventDate, Person, Meeting_Link, Extra_Notes } = req.body;
+  console.log(req.user.User.CurrentWorkspaceId)
+  const CurrentWorkspaceId = req.user.User.CurrentWorkspaceId;
   
-  if (!title || !startDateTime || !endDateTime) {
-    return next(new ErrorHandler("Please provide title, start time and end time", 400));
+  if (!Task_Title || !Description || !eventTime || !eventDate || !Person || !Meeting_Link) {
+    return next(new ErrorHandler("Please provide all required fields", 400));
   }
   
   // Create event in our database
   const event = await TaskModel.create({
-    title,
-    description,
-    startDateTime,
-    endDateTime,
-    location,
-    userId,
-    reminderMinutes: reminderMinutes || 30
+    Task_Title,
+    Description,
+    eventDate,
+    eventTime,
+    Person,
+    Meeting_Link,
+    Extra_Notes,
+    WorkspaceId: CurrentWorkspaceId  // Make sure to associate with workspace
   });
   
-  // If user has connected Google Calendar, sync the event
-  const user = await UserModel.findByPk(userId);
+  // If workspace has connected Google Calendar, sync the event
+  const api = await ApiModel.findOne({
+    where: { WorkspaceId: CurrentWorkspaceId }
+  });
   
-  if (user.googleAccessToken && user.googleRefreshToken) {
-    const calendar = setupCalendarClient(user.googleAccessToken, user.googleRefreshToken);
-    
-    // Format attendees for Google Calendar API
-    const formattedAttendees = attendees ? 
-      attendees.map(email => ({ email })) : 
-      [];
-    
-    const googleEvent = {
-      summary: title,
-      description,
-      start: {
-        dateTime: new Date(startDateTime).toISOString(),
-        timeZone: 'UTC'
-      },
-      end: {
-        dateTime: new Date(endDateTime).toISOString(),
-        timeZone: 'UTC'
-      },
-      location,
-      attendees: formattedAttendees,
-      reminders: {
-        useDefault: false,
-        overrides: [
-          { method: 'email', minutes: reminderMinutes || 30 },
-          { method: 'popup', minutes: 10 }
-        ]
-      }
-    };
+  if (api && api.GoogleCalendarAccessToken && api.GoogleCalendarRefreshToken) {
+    let calendar;
     
     try {
+      // Fixed: Use the EXACT same property names as stored in database
+      calendar = setupCalendarClient(api.GoogleCalendarAccessToken, api.GoogleCalendarRefreshToken);
+      
+      // If token expired, try to refresh
+      if (!calendar) {
+        const updatedTokens = await refreshGoogleAccessToken(api.GoogleCalendarRefreshToken);
+        if (updatedTokens) {
+          // Update the tokens in the database
+          await api.update({
+            GoogleCalendarAccessToken: updatedTokens.accessToken,
+            GoogleCalendarRefreshToken: updatedTokens.refreshToken
+          });
+          calendar = setupCalendarClient(updatedTokens.accessToken, updatedTokens.refreshToken);
+        }
+      }
+
+      if (!calendar) {
+        throw new Error("Failed to initialize calendar client");
+      }
+      
+      // Format event for Google Calendar API
+      // Create a proper datetime from your Time and Date fields
+      const startDateTime = new Date(`${eventDate}T${eventTime}`);
+      // Add 1 hour for end time if not specified
+      const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
+
+      const googleEvent = {
+        summary: Task_Title,
+        description: Description, // Fixed: Use lowercase 'description'
+        start: {
+          dateTime: startDateTime.toISOString(),
+          timeZone: 'UTC'
+        },
+        end: {
+          dateTime: endDateTime.toISOString(), // Added missing end time
+          timeZone: 'UTC'
+        },
+        location: Meeting_Link, // Use Meeting_Link as location
+        // Add Person as attendee if it's an email
+        attendees: Person.includes('@') ? [{ email: Person }] : [],
+        reminders: {
+          useDefault: false,
+          overrides: [
+            { method: 'email', minutes: 30 },
+            { method: 'popup', minutes: 10 }
+          ]
+        }
+      };
+      
+      // Fixed: Added await here - this is critical
       const response = await calendar.events.insert({
         calendarId: 'primary',
         resource: googleEvent
