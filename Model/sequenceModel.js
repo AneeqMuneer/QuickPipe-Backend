@@ -18,6 +18,7 @@ const Sequence = sequelize.define('Sequence', {
             Name: "Step 1",
             Subject: "",
             Body: "",
+            Delay: 0,
         }],
     },
 }, {
