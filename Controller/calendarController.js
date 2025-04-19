@@ -101,11 +101,19 @@ exports.handleOAuthCallback = catchAsyncError(async (req, res,next) => {
 // Create a new event and sync with Google Calendar
 exports.createEvent = catchAsyncError(async (req, res, next) => {
   const { Task_Title, Description, eventTime, eventDate, Person, Meeting_Link, Extra_Notes } = req.body;
-  console.log(req.user.User.CurrentWorkspaceId)
   const CurrentWorkspaceId = req.user.User.CurrentWorkspaceId;
   
   if (!Task_Title || !Description || !eventTime || !eventDate || !Person || !Meeting_Link) {
     return next(new ErrorHandler("Please provide all required fields", 400));
+  }
+
+  // If workspace has connected Google Calendar, sync the event
+  const api = await ApiModel.findOne({
+    where: { WorkspaceId: CurrentWorkspaceId }
+  });
+
+  if (!api) {
+    return next(new ErrorHandler('Connect your Google Calendar before submitting this request',400));
   }
   
   // Create event in our database
@@ -120,10 +128,6 @@ exports.createEvent = catchAsyncError(async (req, res, next) => {
     WorkspaceId: CurrentWorkspaceId  // Make sure to associate with workspace
   });
   
-  // If workspace has connected Google Calendar, sync the event
-  const api = await ApiModel.findOne({
-    where: { WorkspaceId: CurrentWorkspaceId }
-  });
   
   if (api && api.GoogleCalendarAccessToken && api.GoogleCalendarRefreshToken) {
     let calendar;
@@ -185,7 +189,7 @@ exports.createEvent = catchAsyncError(async (req, res, next) => {
       });
       
       // Update our event with Google Calendar event ID
-      await event.update({ googleEventId: response.data.id });
+      await event.update({ GoogleEventId: response.data.id });
     } catch (error) {
       // Continue even if Google Calendar sync fails
       console.error("Google Calendar sync failed:", error);
@@ -371,10 +375,16 @@ exports.deleteEvent = catchAsyncError(async (req, res, next) => {
 
 // Sync events from Google Calendar
 exports.syncGoogleEvents = catchAsyncError(async (req, res, next) => {
-  const userId = req.user.id;
-  const user = await UserModel.findByPk(userId);
-  
-  if (!user.googleAccessToken || !user.googleRefreshToken) {
+  // If workspace has connected Google Calendar, sync the event
+  const CurrentWorkspaceId = req.user.User.CurrentWorkspaceId;
+  const api = await ApiModel.findOne({
+    where: { WorkspaceId: CurrentWorkspaceId }
+  });
+
+  if (!api) {
+    return next(new ErrorHandler('Connect your Google Calendar before submitting this request',400));
+  }  
+  if (!api.googleAccessToken || !api.googleRefreshToken) {
     return next(new ErrorHandler("Google Calendar not connected", 400));
   }
   

@@ -40,6 +40,10 @@ const Task = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    GoogleEventId: {
+      type: DataTypes.STRING,
+      allowNull:true,
+    },
   },
   {
     tableName: "Tasks",
