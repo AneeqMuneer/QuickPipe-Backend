@@ -2,7 +2,7 @@ exports.ExtractTitleAndLocation = (description) => {
     // Common job title patterns - improved to capture standalone titles
     const titlePatterns = [
         // Standalone common titles
-        /\b(Developer|Engineer|Architect|Designer|Analyst|Specialist|Manager|Director|Consultant)\b/i,
+        /\b(Developer|Software Engineer|Architect|Designer|Analyst|Specialist|Manager|Director|Consultant)\b/i,
 
         // C-level executives
         /\b(CEO|CTO|CFO|COO|CMO|CIO|CHRO|CSO)\b/i,
