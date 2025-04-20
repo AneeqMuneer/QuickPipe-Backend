@@ -25,6 +25,7 @@ const leadRoutes = require('./Routes/leadRoutes');
 const campaignRoutes = require('./Routes/campaignRoutes');
 const apiRoutes = require("./Routes/apiRoutes");
 const helpRoutes = require("./Routes/helpRoutes");
+const taskRoutes = require('./Routes/taskRoutes');
 
 app.use("/user" , UserRoutes);
 app.use("/workspace" , WorkspaceRoutes)
@@ -35,6 +36,7 @@ app.use('/lead',leadRoutes);
 app.use('/campaign',campaignRoutes);
 app.use("/integration" , apiRoutes);
 app.use("/help" , helpRoutes);
+app.use('/tasks',taskRoutes);
 
 
 app.use(middleware);

@@ -44,6 +44,10 @@ const Task = sequelize.define(
       type: DataTypes.STRING,
       allowNull:true,
     },
+    WorkspaceId: {
+      type: DataTypes.STRING,
+      allowNull:true,
+    }
   },
   {
     tableName: "Tasks",

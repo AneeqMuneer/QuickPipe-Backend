@@ -30,7 +30,6 @@ exports.AddApi = catchAsyncError(async (req , res , next) => {
     }
 
     API.SlackAPI = req.body.SlackAPI || API.SlackAPI;
-    API.GoogleCalendarAPI = req.body.GoogleCalendarAPI || API.GoogleCalendarAPI;
     API.OpenAiAPI = req.body.OpenAiAPI || API.OpenAiAPI;
     API.HubspotAPI = req.body.HubspotAPI || API.HubspotAPI;
     API.SalesforceAPI = req.body.SalesforceAPI || API.SalesforceAPI;
