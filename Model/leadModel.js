@@ -19,16 +19,14 @@ const Lead = sequelize.define(
       validate: {
         isEmail: true
       },
-      unique: true
     },
     Phone: {
       type: DataTypes.STRING(50),
-      allowNull: true, // aa rha hai
-      unique: true,
+      allowNull: true,
     },
     Company: {
       type: DataTypes.STRING,
-      allowNull: true // aa rha hai
+      allowNull: true
     },
     Status: {
       type: DataTypes.ENUM("Discovery", "Evaluation", "Proposal", "Negotiation", "Commit", "Closed"),
@@ -41,15 +39,27 @@ const Lead = sequelize.define(
     },
     Website: {
       type: DataTypes.STRING,
-      allowNull: true, // aa rha hai
+      allowNull: true,
     },
     Title: {
       type: DataTypes.STRING,
-      allowNull: true, // aa rha hai
+      allowNull: true,
     },
     Location: {
       type: DataTypes.STRING,
-      allowNull: true, // aa rha hai
+      allowNull: true,
+    },
+    // Fields for Campaign Sequence tracking
+    CommunicationEmail: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      validate: {
+        isEmail: true
+      },
+    },
+    CampaignStep: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
     },
     LastInteraction: {
       type: DataTypes.DATE,
@@ -63,3 +73,5 @@ const Lead = sequelize.define(
 );
 
 module.exports = Lead;
+
+// Phone Company Website Title Location

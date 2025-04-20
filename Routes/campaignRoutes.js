@@ -5,7 +5,7 @@ const {
     UpdateCampaign , DeleteCampaign , GetCampaignLeads , 
     GetCampaignSequence , UpdateCampaignSequence , GetCampaignSchedule , 
     UpdateCampaignSchedule , SendCampaignMail , GenerateAIEmail , 
-    GenerateAISequence , ActivePauseCampaign } = require("../Controller/campaignController");
+    GenerateAISequence , ActivePauseCampaign , GenerateAISchedule } = require("../Controller/campaignController");
 const { VerifyUser } = require("../Middleware/userAuth");
 const { VerifyCampaign } = require("../Middleware/campaignAuth");
 
@@ -26,5 +26,6 @@ router.get("/GenerateAISequence/:campaignid/sequence", VerifyUser , VerifyCampai
 
 router.get("/GetCampaignSchedule/:campaignid/schedule", VerifyUser , VerifyCampaign , GetCampaignSchedule);
 router.put("/UpdateCampaignSchedule/:campaignid/schedule", VerifyUser , VerifyCampaign , UpdateCampaignSchedule);
+router.get("/GenerateAISchedule/:campaignid/schedule", VerifyUser , VerifyCampaign , GenerateAISchedule);
 
 module.exports = router;

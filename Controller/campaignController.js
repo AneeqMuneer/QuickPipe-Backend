@@ -262,7 +262,7 @@ exports.GenerateAIEmail = catchAsyncError(async (req, res, next) => {
             prompt = `
     You are a professional cold outreach strategist.
     
-    Write a follow-up email for a campaign named "${campaign.name}", at the step titled "${currentEmail.Name}".
+    Write a follow-up email for a campaign named "${campaign.Name}", at the step titled "${currentEmail.Name}".
     
     The lead hasn't responded to any previous emails. Below is the context from earlier steps:
     
@@ -383,7 +383,7 @@ exports.GenerateAISequence = catchAsyncError(async (req, res, next) => {
     const prompt = `
 You are a professional cold outreach strategist.
 
-Your task is to generate a complete cold email sequence for a campaign named "${campaign.name}". 
+Your task is to generate a complete cold email sequence for a campaign named "${campaign.Name}". 
 This is the current state of the sequence: ${existingSequenceContext}
 
 Use this information to create a new sequence or improve the existing one that aligns on the objectives of the campaign highlighted by it's name.
@@ -475,7 +475,99 @@ exports.UpdateCampaignSchedule = catchAsyncError(async (req, res, next) => {
 });
 
 exports.GenerateAISchedule = catchAsyncError(async (req , res , next) => {
-    const { Schedule } = req.body;
+    const { Emails , Leads } = req.body;
+    const campaign = req.campaign;
+
+    if (!campaign) {
+        return next(new ErrorHandler("Campaign not found", 400));
+    }
+
+    const existingSequenceContext = Emails && Emails.length > 0
+        ? `Here is the current sequence:\n\n${Emails.map((e, i) =>
+            `Step ${i + 1} - ${e.Name || "Unnamed"}\nSubject: ${e.Subject || "N/A"}\nBody: ${e.Body || "N/A"}`
+        ).join('\n\n')}`
+        : "There is currently no existing sequence.";
+
+    const uniqueLocations = [...new Set(Leads.map(lead => lead.Location).filter(Boolean))];
+
+    const prompt = `You are an expert cold outreach strategist and scheduling assistant.
+
+We are running a campaign named "${campaign.Name}".
+
+You will help generate a set of sending **schedules** for email accounts to follow.
+
+---
+
+Each schedule will define:
+- Name: A unique name like "Schedule 1"
+- TimingFrom: Starting time for email sends in 24-hour format (e.g., "09:00:00")
+- TimingTo: Ending time for email sends in 24-hour format (e.g., "17:00:00")
+- Timezone: The relevant IANA timezone (e.g., "America/New_York")
+- Days: An array of days during which emails will be sent (e.g., ["Monday", "Wednesday", "Friday"])
+
+---
+
+### Context
+
+Here is the current sequence of emails that will be sent:
+
+${existingSequenceContext}
+
+---
+
+Here are the locations from where the various leads belong from:
+
+${uniqueLocations.join(", ")}
+
+Use this to determine which timezones should be considered for sending emails during working hours (9 AM to 5 PM local time, or slightly earlier/later to test variation).
+
+---
+
+Please generate multiple schedule variants that are:
+- Realistic (simulate human work hours)
+- Take into account all the unique locations of the leads
+- Randomized to avoid detection by spam filters
+- Diverse in days and hours to avoid pattern detection
+- Following the structure below in JSON format
+
+### Output JSON Format:
+[
+  {
+    "Name": "Schedule 1",
+    "TimingFrom": "09:00:00",
+    "TimingTo": "17:00:00",
+    "Timezone": "America/New_York",
+    "Days": ["Monday", "Wednesday", "Friday"]
+  },
+  {
+    "Name": "Schedule 2",
+    "TimingFrom": "08:30:00",
+    "TimingTo": "16:30:00",
+    "Timezone": "Europe/London",
+    "Days": ["Tuesday", "Thursday"]
+  },
+  ...
+]
+
+Quick Tip: Avoid using Saturday and Sunday for sending emails, as most people are not working on weekends.
+Make sure to use a variety of timezones and days to make the schedule look natural and human-like.
+`
+    
+    const response = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        store: true,
+        messages: [
+            { "role": "user", "content": prompt },
+        ],
+    });
+
+    AISchedule = JSON.parse(response.choices[0].message.content);
+
+    return res.status(200).json({
+        success: true,
+        message: "AI response generated successfully",
+        content: AISchedule,
+    });
 });
 
 /* OPTIONS TAB */
