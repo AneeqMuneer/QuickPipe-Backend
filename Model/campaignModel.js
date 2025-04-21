@@ -9,14 +9,6 @@ const Campaign = sequelize.define(
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
-    SequenceId: {
-      type: DataTypes.UUID,
-      allowNull: true,
-    },
-    ScheduleId: {
-      type: DataTypes.UUID,
-      allowNull: true,
-    },
     WorkspaceId: {
       type: DataTypes.UUID,
       allowNull: false,

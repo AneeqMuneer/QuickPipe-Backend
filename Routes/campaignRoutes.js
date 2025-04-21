@@ -5,7 +5,8 @@ const {
     UpdateCampaign , DeleteCampaign , GetCampaignLeads , 
     GetCampaignSequence , UpdateCampaignSequence , GetCampaignSchedule , 
     UpdateCampaignSchedule , SendCampaignMail , GenerateAIEmail , 
-    GenerateAISequence , ActivePauseCampaign , GenerateAISchedule } = require("../Controller/campaignController");
+    GenerateAISequence , ActivePauseCampaign , GenerateAISchedule ,
+    RunCampaign } = require("../Controller/campaignController");
 const { VerifyUser } = require("../Middleware/userAuth");
 const { VerifyCampaign } = require("../Middleware/campaignAuth");
 
@@ -15,6 +16,7 @@ router.get("/GetCampaignById/:campaignid", VerifyUser , VerifyCampaign , GetCamp
 router.put("/UpdateCampaign/:campaignid", VerifyUser , VerifyCampaign , UpdateCampaign);
 router.delete("/DeleteCampaign/:campaignid", VerifyUser , VerifyCampaign , DeleteCampaign);
 router.put("/ActivePauseCampaign/:campaignid", VerifyUser , VerifyCampaign , ActivePauseCampaign);
+router.put("/RunCampaign/:campaignid", VerifyUser , VerifyCampaign , RunCampaign);
 
 router.get("/GetCampaignLeads/:campaignid/people", VerifyUser , VerifyCampaign , GetCampaignLeads);
 

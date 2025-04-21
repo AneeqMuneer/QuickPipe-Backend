@@ -24,8 +24,8 @@ const Schedule = sequelize.define('Schedule', {
         allowNull: true,
         defaultValue: [{
             Name: "Schedule 1",
-            "TimingFrom": "09:00:00",
-            "TimingTo": "17:00:00",
+            TimingFrom: "09:00:00",
+            TimingTo: "17:00:00",
             Timezone: "UTC",
             Days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
         }],

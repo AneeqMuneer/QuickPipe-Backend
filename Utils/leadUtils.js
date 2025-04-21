@@ -1,3 +1,5 @@
+const moment = require("moment-timezone");
+
 exports.ExtractTitleAndLocation = (description) => {
     // Common job title patterns - improved to capture standalone titles
     const titlePatterns = [
@@ -65,3 +67,41 @@ exports.ExtractTitleAndLocation = (description) => {
 
     return { title, location };
 }
+
+exports.getRandomSendingTime = (schedule, delay = 0) => {
+    const { TimingFrom, TimingTo, Days, Timezone } = schedule;
+    
+    const now = moment.tz(Timezone);
+    const delayFromNow = now.clone().add(delay, 'days').startOf('day'); // Earliest allowed date
+
+    // Convert allowed day names to ISO weekday numbers (1 = Monday, ..., 7 = Sunday)
+    const allowedWeekdays = Days.map(day => moment().isoWeekday(day).isoWeekday());
+
+    // Collect next valid dates that are at least `delay` days ahead
+    let validDates = [];
+    for (let i = 0; i < 14; i++) { // Look 2 weeks ahead
+        const checkDate = delayFromNow.clone().add(i, 'days');
+        if (allowedWeekdays.includes(checkDate.isoWeekday())) {
+            validDates.push(checkDate);
+        }
+    }
+
+    if (validDates.length === 0) {
+        throw new Error("No valid dates available based on schedule and delay");
+    }
+
+    // Pick a random valid date
+    const targetDate = validDates[Math.floor(Math.random() * validDates.length)];
+
+    // Create moment objects for from and to times
+    const fromTime = moment.tz(`${targetDate.format("YYYY-MM-DD")} ${TimingFrom}`, "YYYY-MM-DD HH:mm:ss", Timezone);
+    const toTime = moment.tz(`${targetDate.format("YYYY-MM-DD")} ${TimingTo}`, "YYYY-MM-DD HH:mm:ss", Timezone);
+
+    // Generate random timestamp between from and to
+    const randomTimestamp = new Date(fromTime.valueOf() + Math.random() * (toTime.valueOf() - fromTime.valueOf()));
+
+    // Format final datetime
+    const sendingTime = moment.tz(randomTimestamp, Timezone).format("YYYY-MM-DD HH:mm:ss");
+
+    return sendingTime;
+};

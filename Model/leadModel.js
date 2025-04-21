@@ -59,12 +59,20 @@ const Lead = sequelize.define(
     },
     CampaignStep: {
       type: DataTypes.INTEGER,
-      allowNull: true,
+      defaultValue: 0,
+    },
+    Responded: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
     },
     LastInteraction: {
       type: DataTypes.DATE,
       allowNull: true,
     },
+    SendingSchedule: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+    }
   },
   {
     tableName: 'Leads',

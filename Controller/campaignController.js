@@ -6,14 +6,22 @@ const LeadModel = require("../Model/leadModel");
 const SequenceModel = require("../Model/sequenceModel");
 const ScheduleModel = require("../Model/scheduleModel");
 
-const moment = require("moment");
+const { getRandomSendingTime } = require("../Utils/leadUtils");
+
 const cron = require("node-cron");
 const nodemailer = require("nodemailer");
+const moment = require("moment-timezone");
 const OpenAI = require('openai');
+const sgMail = require('@sendgrid/mail');
+const { Op } = require("sequelize");
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
+
+/* OVERALL CAMPAIGN OPERATIONS */
 
 exports.CreateCampaign = catchAsyncError(async (req, res, next) => {
     const { Name } = req.body;
@@ -35,6 +43,10 @@ exports.CreateCampaign = catchAsyncError(async (req, res, next) => {
     const schedule = await ScheduleModel.create({
         CampaignId: campaign.id,
     })
+
+    campaign.SequenceId = sequence.id;
+    campaign.ScheduleId = schedule.id;
+    await campaign.save();
 
     res.status(201).json({
         success: true,
@@ -101,6 +113,7 @@ exports.ActivePauseCampaign = catchAsyncError(async (req, res, next) => {
     if (campaign.Status === "Active") {
         campaign.Status = "Paused";
     } else if (campaign.Status === "Paused") {
+        // Active pe add cron job to run api
         campaign.Status = "Active";
     }
 
@@ -116,7 +129,73 @@ exports.ActivePauseCampaign = catchAsyncError(async (req, res, next) => {
 exports.RunCampaign = catchAsyncError(async (req, res, next) => {
     const campaign = req.campaign;
 
+    if (campaign.Status !== "Active") {
+        return next(new ErrorHandler("Campaign is not active", 400));
+    }
+    const sequences = await SequenceModel.findOne({ where: { CampaignId: campaign.id } });
+    const schedules = await ScheduleModel.findOne({ where: { CampaignId: campaign.id } });
+    const leads = await LeadModel.findAll({ where: { CampaignId: campaign.id } });
+
+    const mailAccounts = ['account1@gmail.com','account2@gmail.com','account3@gmail.com','account4@gmail.com','account5@gmail.com'];
+
+    if (!sequences || sequences.length === 0) return next(new ErrorHandler("Sequence not found", 404));
+    if (!schedules || schedules.length === 0) return next(new ErrorHandler("Schedules not found", 404));
+    if (!leads || leads.length === 0) return next(new ErrorHandler("No leads found", 404));
+
+    const emails = sequences.Emails;
+
+    // jo CampaignStep hai wo index pe jo email hai wo bhejna hai so if 1 means 0 is already sent now need to send 1
+    const Plan = [];
+
+    for (const lead of leads) {
+        if (!lead.Responded) {
+            if (lead.CampaignStep < emails.length) {
+                
+                if (lead.CampaignStep === 0) {
+                    const sendingEmail = emails[lead.CampaignStep];
+                    const emailAccount = mailAccounts[Math.floor(Math.random() * mailAccounts.length)];
+                    const sendingSchedule = schedules.Schedule[Math.floor(Math.random() * schedules.Schedule.length)];
+                    const sendingTime = getRandomSendingTime(sendingSchedule , 0);
+                    
+                    Plan.push({
+                        Receiver: lead.Email,
+                        EmailAccount: emailAccount,
+                        Time: sendingTime,
+                        Subject: sendingEmail.Subject,
+                        Body: sendingEmail.Body,
+                    });
+                    // cron job to send email with updating lastinteraction and step (with condition for if exists)
+                    
+                    lead.CommunicationEmail = emailAccount;
+                    lead.SendingSchedule = sendingSchedule;
+                    await lead.save();
+                } else {
+                    const sendingEmail = emails[lead.CampaignStep];
+                    const emailAccount = lead.CommunicationEmail;
+                    const sendingSchedule = lead.SendingSchedule;
+                    const sendingTime = getRandomSendingTime(sendingSchedule , emails[lead.CampaignStep -1].Delay);
+                    
+                    // cron job to send email with updating lastinteraction, step (with condition for if exists), and if has responded or not
+                    
+                    Plan.push({
+                        Receiver: lead.Email,
+                        EmailAccount: emailAccount,
+                        Time: sendingTime,
+                        Subject: sendingEmail.Subject,
+                        Body: sendingEmail.Body,
+                    });
+                }
+            }
+        }
+    }
     
+    // run cron job to call this api again
+
+    res.status(200).json({
+        success: true,
+        message: "Campaign run successfully",
+        Plan,
+    })
 });
 
 /* PEOPLE TAB */
@@ -242,7 +321,7 @@ exports.SendCampaignMail = catchAsyncError(async (req, res, next) => {
 exports.GenerateAIEmail = catchAsyncError(async (req, res, next) => {
     const { Emails, EmailIndex } = req.body;
     const campaign = req.campaign;
-    
+
     if (EmailIndex < 0 || EmailIndex >= Emails.length) {
         return next(new ErrorHandler("Email index out of range", 400));
     }
@@ -277,7 +356,7 @@ exports.GenerateAIEmail = catchAsyncError(async (req, res, next) => {
     {
       "Body": "your follow-up email body here"
     }
-            `.trim();
+    Make sure to use new line characters to show a new line in the JSON response to make it a valid JSON`.trim();
         } else {
             // Improve follow-up email with context
             prompt = `
@@ -299,7 +378,7 @@ exports.GenerateAIEmail = catchAsyncError(async (req, res, next) => {
     {
       "Body": "your improved email body here"
     }
-            `.trim();
+    Make sure to use new line characters to show a new line in the JSON response to make it a valid JSON`.trim();
         }
     } else {
         // Cold email (non-reply)
@@ -322,7 +401,7 @@ exports.GenerateAIEmail = catchAsyncError(async (req, res, next) => {
       "Subject": "your improved subject here",
       "Body": "your inspired email here"
     }
-            `.trim();
+    Make sure to use new line characters to show a new line in the JSON response to make it a valid JSON`.trim();
         } else {
             // Improve cold email
             prompt = `
@@ -343,7 +422,7 @@ exports.GenerateAIEmail = catchAsyncError(async (req, res, next) => {
       "Subject": "your improved subject here",
       "Body": "your improved email body here"
     }
-            `.trim();
+    Make sure to use new line characters to show a new line in the JSON response to make it a valid JSON`.trim();
         }
     }
 
@@ -355,14 +434,12 @@ exports.GenerateAIEmail = catchAsyncError(async (req, res, next) => {
         ],
     });
 
-    console.log(response.choices[0].message.content);
-
-    // const answer = JSON.parse(response.choices[0].message.content);
+    const answer = JSON.parse(response.choices[0].message.content);
 
     return res.status(200).json({
         success: true,
         message: "AI response generated successfully",
-        // content: answer,
+        content: answer,
     });
 });
 
@@ -474,8 +551,8 @@ exports.UpdateCampaignSchedule = catchAsyncError(async (req, res, next) => {
     });
 });
 
-exports.GenerateAISchedule = catchAsyncError(async (req , res , next) => {
-    const { Emails , Leads } = req.body;
+exports.GenerateAISchedule = catchAsyncError(async (req, res, next) => {
+    const { Emails, Leads } = req.body;
     const campaign = req.campaign;
 
     if (!campaign) {
@@ -552,7 +629,7 @@ Please generate multiple schedule variants that are:
 Quick Tip: Avoid using Saturday and Sunday for sending emails, as most people are not working on weekends.
 Make sure to use a variety of timezones and days to make the schedule look natural and human-like.
 `
-    
+
     const response = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         store: true,
@@ -571,3 +648,8 @@ Make sure to use a variety of timezones and days to make the schedule look natur
 });
 
 /* OPTIONS TAB */
+
+// Active pe add cron job to run api
+// cron job mein update last interaction & campaign step
+// create cron job to send email
+// create cron job to run campaign at the end of the API
