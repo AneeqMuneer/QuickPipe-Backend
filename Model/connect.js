@@ -8,6 +8,7 @@ const CampaignModel = require("../Model/campaignModel.js");
 const LeadModel = require("../Model/leadModel.js");
 const SequenceModel = require("../Model/sequenceModel.js");
 const ScheduleModel = require("../Model/scheduleModel.js");
+const EmailAccountModel = require("../Model/emailAccountModel.js");
 
 
 
@@ -33,6 +34,9 @@ SequenceModel.belongsTo(CampaignModel, { foreignKey: 'CampaignId', targetKey: "i
 
 CampaignModel.hasOne(ScheduleModel, { foreignKey: 'CampaignId', sourceKey: "id", onDelete: 'CASCADE' });
 ScheduleModel.belongsTo(CampaignModel, { foreignKey: 'CampaignId', targetKey: "id" });
+
+EmailAccountModel.hasOne(WorkspaceModel, { foreignKey: 'id', sourceKey: "WorkspaceId", onDelete: 'CASCADE' });
+WorkspaceModel.belongsTo(EmailAccountModel, { foreignKey: 'id', targetKey: "WorkspaceId" });
 
 
 
