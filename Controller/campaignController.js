@@ -236,6 +236,7 @@ exports.GetCampaignSequence = catchAsyncError(async (req, res, next) => {
 
 exports.UpdateCampaignSequence = catchAsyncError(async (req, res, next) => {
     const { Emails } = req.body;
+    
     const campaign = req.campaign;
 
     const sequence = await SequenceModel.findOne({
