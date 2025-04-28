@@ -6,7 +6,8 @@ const {
     GetCampaignSequence , UpdateCampaignSequence , GetCampaignSchedule , 
     UpdateCampaignSchedule , SendCampaignMail , GenerateAIEmail , 
     GenerateAISequence , ActivePauseCampaign , GenerateAISchedule ,
-    RunCampaign } = require("../Controller/campaignController");
+    RunCampaign 
+} = require("../Controller/campaignController");
 const { VerifyUser } = require("../Middleware/userAuth");
 const { VerifyCampaign } = require("../Middleware/campaignAuth");
 
