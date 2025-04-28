@@ -23,11 +23,11 @@ router.get("/GetCampaignLeads/:campaignid/people", VerifyUser , VerifyCampaign ,
 router.get("/GetCampaignSequence/:campaignid/sequence", VerifyUser , VerifyCampaign , GetCampaignSequence);
 router.put("/UpdateCampaignSequence/:campaignid/sequence", VerifyUser , VerifyCampaign , UpdateCampaignSequence);
 router.put("/SendCampaignMail/:campaignid/sequence", VerifyUser , VerifyCampaign , SendCampaignMail);
-router.get("/GenerateAIEmail/:campaignid/sequence", VerifyUser , VerifyCampaign , GenerateAIEmail);
-router.get("/GenerateAISequence/:campaignid/sequence", VerifyUser , VerifyCampaign , GenerateAISequence);
+router.post("/GenerateAIEmail/:campaignid/sequence", VerifyUser , VerifyCampaign , GenerateAIEmail);
+router.post("/GenerateAISequence/:campaignid/sequence", VerifyUser , VerifyCampaign , GenerateAISequence);
 
 router.get("/GetCampaignSchedule/:campaignid/schedule", VerifyUser , VerifyCampaign , GetCampaignSchedule);
 router.put("/UpdateCampaignSchedule/:campaignid/schedule", VerifyUser , VerifyCampaign , UpdateCampaignSchedule);
-router.get("/GenerateAISchedule/:campaignid/schedule", VerifyUser , VerifyCampaign , GenerateAISchedule);
+router.post("/GenerateAISchedule/:campaignid/schedule", VerifyUser , VerifyCampaign , GenerateAISchedule);
 
 module.exports = router;
