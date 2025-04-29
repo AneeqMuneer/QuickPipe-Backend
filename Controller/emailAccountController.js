@@ -236,7 +236,7 @@ exports.MicrosoftAccountCallback = catchAsyncError(async (req, res, next) => {
             }
         }
     );
-
+    console.log("Token generated");
     const { access_token, refresh_token, expires_in } = tokenResponse.data;
     
     const userResponse = await axios.get('https://graph.microsoft.com/v1.0/me', {
@@ -244,6 +244,7 @@ exports.MicrosoftAccountCallback = catchAsyncError(async (req, res, next) => {
             'Authorization': `Bearer ${access_token}`
         }
     });
+    console.log("got user response");
     
     const userEmail = userResponse.data.userPrincipalName || userResponse.data.mail;
     

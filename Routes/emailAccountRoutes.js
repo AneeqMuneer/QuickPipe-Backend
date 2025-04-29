@@ -15,6 +15,6 @@ router.route("/ReadyGmailAccount").get(VerifyUser, ReadyGmailAccount);
 router.route("/google/callback").get(VerifyUser, GmailAccountCallback);
 
 router.route("/ReadyMicrosoftAccount").get(VerifyUser, ReadyMicrosoftAccount);
-router.route("/microsoft/callback").get(MicrosoftAccountCallback);
+router.route("/microsoft/callback").get(VerifyUser , MicrosoftAccountCallback);
 
 module.exports = router;

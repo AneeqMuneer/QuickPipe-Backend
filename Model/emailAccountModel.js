@@ -29,11 +29,11 @@ const EmailAccount = sequelize.define('EmailAccount', {
         allowNull: false,
     },
     RefreshToken: {
-        type: DataTypes.STRING,
+        type: DataTypes.TEXT,
         allowNull: false,
     },
     AccessToken: {
-        type: DataTypes.STRING,
+        type: DataTypes.TEXT,
         allowNull: false,
     },
     ExpiresIn: {

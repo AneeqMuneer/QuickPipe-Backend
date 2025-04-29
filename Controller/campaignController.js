@@ -648,6 +648,16 @@ Make sure to use a variety of timezones and days to make the schedule look natur
     });
 });
 
+exports.GetAllTimezones = catchAsyncError(async (req , res , next) => {
+    const timezones = moment.tz.names();
+
+    res.status(200).json({
+        success: true,
+        message: "Timezones found successfully",
+        timezones,
+    });
+});
+
 /* OPTIONS TAB */
 
 // Active pe add cron job to run api
