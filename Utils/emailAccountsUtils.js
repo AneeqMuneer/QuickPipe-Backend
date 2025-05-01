@@ -3,7 +3,7 @@ const { google } = require('googleapis');
 exports.GmailOauth2Client = new google.auth.OAuth2(
     process.env.GMAIL_CLIENT_ID,
     process.env.GMAIL_CLIENT_SECRET,
-    `${process.env.BACKEND_URL}/${process.env.GMAIL_REDIRECT_ENDPOINT}`
+    `${process.env.FRONTEND_URL}/${process.env.GMAIL_REDIRECT_ENDPOINT}`
 );
 
 exports.GmailScopes = [
@@ -15,7 +15,7 @@ exports.GmailScopes = [
 exports.MicrosoftEmailAccountDetails = {
     ClientId: process.env.OUTLOOK_CLIENT_ID,
     ClientSecret: process.env.OUTLOOK_CLIENT_SECRET,
-    RedirectUri: `${process.env.BACKEND_URL}/${process.env.OUTLOOK_REDIRECT_ENDPOINT}`,
+    RedirectUri: `${process.env.FRONTEND_URL}/${process.env.OUTLOOK_REDIRECT_ENDPOINT}`,
     OutlookScopes: [
         'User.Read',
         'Mail.Read',
