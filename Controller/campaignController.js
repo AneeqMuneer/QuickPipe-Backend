@@ -5,6 +5,7 @@ const CampaignModel = require("../Model/campaignModel");
 const LeadModel = require("../Model/leadModel");
 const SequenceModel = require("../Model/sequenceModel");
 const ScheduleModel = require("../Model/scheduleModel");
+const TemplateModel = require("../Model/templateModel");
 
 const { getRandomSendingTime } = require("../Utils/leadUtils");
 
@@ -512,6 +513,35 @@ Keep the tone professional but friendly and results-driven. Don't be too pushy. 
     });
 });
 
+exports.CreateTemplate = catchAsyncError(async (req, res, next) => {
+    const { Name, Subject, Body } = req.body;
+
+    if (!Name || !Subject || !Body) {
+        return next(new ErrorHandler("All fields are required", 400));
+    }
+
+    const Template = await TemplateModel.create({
+        Name,
+        Subject,
+        Body
+    });
+
+    res.status(201).json({
+        success: true,
+        message: "Template created successfully",
+        Template
+    });
+});
+
+exports.GetAllTemplates = catchAsyncError(async (req, res, next) => {
+    const Templates = await TemplateModel.findAll();
+
+    res.status(200).json({
+        success: true,
+        message: "Templates retrieved successfully",
+        Templates
+    });
+});
 
 /* SCHEDULE TAB */
 
