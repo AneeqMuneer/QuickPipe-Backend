@@ -37,22 +37,30 @@ const setupCalendarClient = (accessToken, refreshToken) => {
 exports.connectGoogleCalendar = catchAsyncError(async (req, res, next) => {
   try {
     if (!req.user) {
-        return res.status(401).json({ success: false, message: "User not authenticated" });
-      }
-    console.log(req.user.User.CurrentWorkspaceId)
+      return res.status(401).json({ success: false, message: "User not authenticated" });
+    }
+
+    console.log(req.user.User.CurrentWorkspaceId);
     const state = encodeURIComponent(JSON.stringify({ CurrentWorkspaceId: req.user.User.CurrentWorkspaceId }));
+
     // Generate the Google authentication URL
     const url = oauth2Client.generateAuthUrl({
-        access_type: 'offline', // Request offline access to receive a refresh token
-        scope:['https://www.googleapis.com/auth/calendar'],
-        prompt:'consent',
-        state
-      });
-      console.log(url);
-      // Redirect the user to Google's OAuth 2.0 server
-      res.redirect(url);
-    } catch (error) {
-    return next(new ErrorHandler("Failed to connect Google Calendar" + error, 500));
+      access_type: 'offline', // Request offline access to receive a refresh token
+      scope: ['https://www.googleapis.com/auth/calendar'],
+      prompt: 'consent',
+      state,
+    });
+
+    console.log(url);
+
+    // Send the URL to the frontend
+    res.status(200).json({
+      success: true,
+      message: "Google Calendar authentication URL generated successfully",
+      url, // Send the URL in the response
+    });
+  } catch (error) {
+    return next(new ErrorHandler("Failed to connect Google Calendar: " + error, 500));
   }
 });
 
