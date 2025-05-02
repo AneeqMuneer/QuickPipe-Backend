@@ -7,12 +7,12 @@ const EmailAccountModel = require("../Model/emailAccountModel");
 
 const { GmailOauth2Client, GmailScopes, MicrosoftEmailAccountDetails } = require("../Utils/emailAccountsUtils");
 const { Client } = require("pg");
-const { ClientId , ClientSecret, RedirectUri, OutlookScopes } = MicrosoftEmailAccountDetails;
+const { ClientId, ClientSecret, RedirectUri, OutlookScopes } = MicrosoftEmailAccountDetails;
 
 /* Home Page */
 
 exports.GetAllEmailAccounts = catchAsyncError(async (req, res, next) => {
-    
+
     const emailAccounts = await EmailAccountModel.findAll({
         where: {
             WorkspaceId: req.user.User.CurrentWorkspaceId
@@ -27,8 +27,8 @@ exports.GetAllEmailAccounts = catchAsyncError(async (req, res, next) => {
 
 /* PART 1: Ready to send Accounts */
 
-exports.GetDomainSuggestions = catchAsyncError(async (req, res , next) => {
-    const { domain , tlds , limit } = req.body;
+exports.GetDomainSuggestions = catchAsyncError(async (req, res, next) => {
+    const { domain, tlds, limit } = req.body;
 
     if (!domain || tlds.length === 0) {
         return next(new ErrorHandler("Domain and TLDs are required", 400));
@@ -72,11 +72,11 @@ exports.GetDomainPrices = catchAsyncError(async (req, res, next) => {
                         'Content-Type': 'application/json',
                     },
                 });
-                
+
                 return {
                     domain,
                     available: response.data.available,
-                    price: response.data.price/1000000 || 0,
+                    price: response.data.price / 1000000 || 0,
                     currency: response.data.currency || 'USD',
                     isPremium: response.data.premium || false,
                     definitive: response.data.definitive
@@ -143,7 +143,7 @@ exports.BuyDomain = catchAsyncError(async (req, res, next) => {
     }
 });
 
-/* PART 2: hassle-free Email Setup | Gmail/Google Suite */
+/* PART 2: Hassle-free Email Setup | Gmail/Google Suite */
 
 exports.ReadyGmailAccount = catchAsyncError(async (req, res, next) => {
     const authUrl = GmailOauth2Client.generateAuthUrl({
@@ -151,7 +151,7 @@ exports.ReadyGmailAccount = catchAsyncError(async (req, res, next) => {
         prompt: 'consent',
         scope: GmailScopes,
     });
-    
+
     res.status(200).json({
         success: true,
         message: "Gmail account is ready to be connected",
@@ -161,53 +161,56 @@ exports.ReadyGmailAccount = catchAsyncError(async (req, res, next) => {
 
 exports.GmailAccountCallback = catchAsyncError(async (req, res, next) => {
     const { code } = req.query;
-    
+
     if (!code) {
         return next(new ErrorHandler("Authorization code not provided", 400));
     }
-    
+
     const { tokens } = await GmailOauth2Client.getToken(code);
-    
+
     if (!tokens) {
         return next(new ErrorHandler("Failed to retrieve tokens", 400));
     }
-    
+
     GmailOauth2Client.setCredentials(tokens);
-    
+
     const oauth2 = google.oauth2({
         auth: GmailOauth2Client,
         version: 'v2',
     });
-    
+
     const { data } = await oauth2.userinfo.get();
-    
-    const emailAccount = await EmailAccountModel.create({
-        WorkspaceId: req.user.User.CurrentWorkspaceId,
-        Email: data.email,
-        Provider: "Google",
-        RefreshToken: tokens.refresh_token,
-        AccessToken: tokens.access_token,
-        ExpiresIn: tokens.expiry_date,
-    });
-    
-    if (!emailAccount) {
+
+    try {
+        const emailAccount = await EmailAccountModel.create({
+            WorkspaceId: req.user.User.CurrentWorkspaceId,
+            Email: data.email,
+            Provider: "Google",
+            RefreshToken: tokens.refresh_token,
+            AccessToken: tokens.access_token,
+            ExpiresIn: tokens.expiry_date,
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "Gmail account connected successfully",
+            emailAccount
+        });
+    } catch (error) {
+        if (error.code === 11000 || error.message.includes('duplicate key')) {
+            return next(new ErrorHandler("This Gmail account is already connected.", 409));
+        }
         return next(new ErrorHandler("Failed to create email account", 500));
     }
-    
-    res.status(200).json({
-        success: true,
-        message: "Gmail account connected successfully",
-        emailAccount
-    });
 });
 
 /* PART 3: Ready to send Accounts | Microsoft Office 365 Suite*/
 
 exports.ReadyMicrosoftAccount = catchAsyncError(async (req, res, next) => {
     const scopes = OutlookScopes.join(' ');
-    
+
     const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${ClientId}&response_type=code&redirect_uri=${RedirectUri}&response_mode=query&scope=${encodeURIComponent(scopes)}`;
-    
+
     res.status(200).json({
         success: true,
         message: "Microsoft account is ready to be connected",
@@ -217,12 +220,12 @@ exports.ReadyMicrosoftAccount = catchAsyncError(async (req, res, next) => {
 
 exports.MicrosoftAccountCallback = catchAsyncError(async (req, res, next) => {
     const { code } = req.query;
-    
+
     if (!code) {
         return next(new ErrorHandler("Authorization code not provided", 400));
     }
-    
-    const tokenResponse = await axios.post(`https://login.microsoftonline.com/common/oauth2/v2.0/token`, 
+
+    const tokenResponse = await axios.post(`https://login.microsoftonline.com/common/oauth2/v2.0/token`,
         new URLSearchParams({
             client_id: ClientId,
             client_secret: ClientSecret,
@@ -238,32 +241,35 @@ exports.MicrosoftAccountCallback = catchAsyncError(async (req, res, next) => {
     );
     console.log("Token generated");
     const { access_token, refresh_token, expires_in } = tokenResponse.data;
-    
+
     const userResponse = await axios.get('https://graph.microsoft.com/v1.0/me', {
         headers: {
             'Authorization': `Bearer ${access_token}`
         }
     });
     console.log("got user response");
-    
+
     const userEmail = userResponse.data.userPrincipalName || userResponse.data.mail;
-    
-    const emailAccount = await EmailAccountModel.create({
-        WorkspaceId: req.user.User.CurrentWorkspaceId,
-        Email: userEmail,
-        Provider: "Microsoft",
-        RefreshToken: refresh_token,
-        AccessToken: access_token,
-        ExpiresIn: Date.now() + (expires_in * 1000),
-    });
-    
-    if (!emailAccount) {
+
+    try {
+        const emailAccount = await EmailAccountModel.create({
+            WorkspaceId: req.user.User.CurrentWorkspaceId,
+            Email: userEmail,
+            Provider: "Microsoft",
+            RefreshToken: refresh_token,
+            AccessToken: access_token,
+            ExpiresIn: Date.now() + (expires_in * 1000),
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "Microsoft account connected successfully",
+            emailAccount
+        });
+    } catch (error) {
+        if (error.code === 11000 || error.message.includes('duplicate key')) {
+            return next(new ErrorHandler("This Microsoft account is already connected.", 409));
+        }
         return next(new ErrorHandler("Failed to create email account", 500));
     }
-    
-    res.status(200).json({
-        success: true,
-        message: "Microsoft account connected successfully",
-        emailAccount
-    });
 });

@@ -6,8 +6,8 @@ const TaskModel = require("../Model/taskModel");
 require("dotenv").config();
 
 // Create a new Task
-exports.createTask = catchAsyncError(async (req, res, next) => {
-  const userId = req.user.id;
+exports.CreateTask = catchAsyncError(async (req, res, next) => {
+  const userId = req.user.User.id;
   const {
     Task_Title,
     Description,
@@ -39,9 +39,9 @@ exports.createTask = catchAsyncError(async (req, res, next) => {
 });
 
 // Get single Task by ID
-exports.getTask = catchAsyncError(async (req, res, next) => {
+exports.GetTask = catchAsyncError(async (req, res, next) => {
   const taskId = req.params.id;
-  const userId = req.user.id;
+  const userId = req.user.User.id;
 
   const task = await TaskModel.findOne({
     where: { id: taskId, userId },
@@ -58,7 +58,7 @@ exports.getTask = catchAsyncError(async (req, res, next) => {
 });
 
 // Get all tasks for logged-in user
-exports.getAllTasks = catchAsyncError(async (req, res, next) => {
+exports.GetAllTasks = catchAsyncError(async (req, res, next) => {
   const CurrentWorkspaceId = req.user.User.CurrentWorkspaceId;
   const tasks = await TaskModel.findAll({
     where: { WorkspaceId :CurrentWorkspaceId },
@@ -72,9 +72,9 @@ exports.getAllTasks = catchAsyncError(async (req, res, next) => {
 });
 
 // Update a Task
-exports.updateTask = catchAsyncError(async (req, res, next) => {
+exports.UpdateTask = catchAsyncError(async (req, res, next) => {
   const taskId = req.params.id;
-  const userId = req.user.id;
+  const userId = req.user.User.id;
 
   const task = await TaskModel.findOne({
     where: { id: taskId, userId },
@@ -94,9 +94,9 @@ exports.updateTask = catchAsyncError(async (req, res, next) => {
 });
 
 // Delete a Task
-exports.deleteTask = catchAsyncError(async (req, res, next) => {
+exports.DeleteTask = catchAsyncError(async (req, res, next) => {
   const taskId = req.params.id;
-  const userId = req.user.id;
+  const userId = req.user.User.id;
 
   const task = await TaskModel.findOne({
     where: { id: taskId, userId },
@@ -115,7 +115,7 @@ exports.deleteTask = catchAsyncError(async (req, res, next) => {
 });
 
 // Get tasks by filter (month/week)
-exports.getTasksByFilter = catchAsyncError(async (req, res, next) => {
+exports.GetTasksByFilter = catchAsyncError(async (req, res, next) => {
   const CurrentWorkspaceId = req.user.User.CurrentWorkspaceId;
   const { filterType, date } = req.query;
 
@@ -156,7 +156,7 @@ exports.getTasksByFilter = catchAsyncError(async (req, res, next) => {
 });
 
 // Get tasks by custom date range
-exports.getTasksByDateRange = catchAsyncError(async (req, res, next) => {
+exports.GetTasksByDateRange = catchAsyncError(async (req, res, next) => {
   const CurrentWorkspaceId = req.user.User.CurrentWorkspaceId;
   const { startDate, endDate } = req.query;
 
@@ -179,5 +179,3 @@ exports.getTasksByDateRange = catchAsyncError(async (req, res, next) => {
     tasks,
   });
 });
-
- 

@@ -1,4 +1,5 @@
 const moment = require("moment-timezone");
+const axios = require("axios");
 
 exports.ExtractTitleAndLocation = (description) => {
     // Common job title patterns - improved to capture standalone titles
@@ -70,7 +71,7 @@ exports.ExtractTitleAndLocation = (description) => {
 
 exports.getRandomSendingTime = (schedule, delay = 0) => {
     const { TimingFrom, TimingTo, Days, Timezone } = schedule;
-    
+
     const now = moment.tz(Timezone);
     const delayFromNow = now.clone().add(delay, 'days').startOf('day'); // Earliest allowed date
 
@@ -105,3 +106,24 @@ exports.getRandomSendingTime = (schedule, delay = 0) => {
 
     return sendingTime;
 };
+
+exports.EnrichLeadWithApollo = async (apolloId) => {
+    const APOLLO_ENRICH_URL = 'https://api.apollo.io/v1/people/match';
+
+    try {
+        const response = await axios.post(APOLLO_ENRICH_URL, {
+            api_key: process.env.APOLLO_API_KEY,
+            id: apolloId,
+            reveal_personal_emails: false
+        });
+        console.log(response.data);
+        if (!response.data || !response.data.person) {
+            throw new Error('Invalid response from Apollo enrichment API');
+        }
+
+        return response.data.person;
+    } catch (error) {
+        console.error('Apollo enrichment API error:', error.message);
+        throw new Error(`Failed to enrich lead: ${error.message}`);
+    }
+}

@@ -4,7 +4,7 @@ const ErrorHandler = require("../Utils/errorHandler");
 
 require('dotenv').config();
 
-const { ExtractTitleAndLocation } = require('../Utils/leadUtils');
+const { ExtractTitleAndLocation , EnrichLeadWithApollo } = require('../Utils/leadUtils');
 
 const LeadModel = require("../Model/leadModel");
 const CampaignModel = require("../Model/campaignModel");
@@ -67,32 +67,6 @@ exports.AddLeadsToCampaign = catchAsyncError(async (req, res, next) => {
   }
 });
 
-/**
-* Enriches a lead with Apollo's people enrichment API
-* @param {string} apolloId - Apollo ID of the person to enrich
-* @returns {Promise<Object>} Enriched lead data from Apollo
-*/
-async function enrichLeadWithApollo(apolloId) {
-  const APOLLO_ENRICH_URL = 'https://api.apollo.io/v1/people/match';
-
-  try {
-    const response = await axios.post(APOLLO_ENRICH_URL, {
-      api_key: process.env.APOLLO_API_KEY,
-      id: apolloId,
-      reveal_personal_emails: false // Set to true if you want personal emails as well
-    });
-    console.log(response.data);
-    if (!response.data || !response.data.person) {
-      throw new Error('Invalid response from Apollo enrichment API');
-    }
-
-    return response.data.person;
-  } catch (error) {
-    console.error('Apollo enrichment API error:', error.message);
-    throw new Error(`Failed to enrich lead: ${error.message}`);
-  }
-}
-
 exports.GetAllLeads = catchAsyncError(async (req, res) => {
   const leads = await LeadModel.findAll();
 
@@ -146,13 +120,27 @@ exports.UpdateLead = catchAsyncError(async (req, res, next) => {
 
 exports.DeleteLead = catchAsyncError(async (req, res, next) => {
   const { leadid } = req.params;
+  const CurrentWorkspaceId = req.user.User.CurrentWorkspaceId;
+
   const lead = await LeadModel.findByPk(leadid);
+  const campaignId = lead.CampaignId;
+  
+  const campaign = await CampaignModel.findOne({
+    where: {
+      id: campaignId,
+      WorkspaceId: CurrentWorkspaceId
+    }
+  });
+
+  if (!campaign) {
+    return next(new ErrorHandler("This lead is not part of the campaign", 404));
+  }
 
   if (!lead) {
     return next(new ErrorHandler("Lead not found", 404));
   }
 
-  await leadModel.destroy();
+  await lead.destroy();
 
   res.status(200).json({
     success: true,
@@ -164,7 +152,7 @@ exports.UpdateLeadStatus = catchAsyncError(async (req, res, next) => {
   const { leadid } = req.params;
   const { status } = req.body;
 
-  const lead = await LeadModel.findByPk(leadid);
+  const lead = awaitLLeadModel.findByPk(leadid);
 
   if (!lead) {
     return next(new ErrorHandler("Lead not found", 404));
@@ -182,7 +170,7 @@ exports.UpdateLeadStatus = catchAsyncError(async (req, res, next) => {
 
 exports.SearchLeads = catchAsyncError(async (req, res, next) => {
   try {
-    const { query, domain, page = 1, per_page = 5 } = req.body;
+    const { query, page = 1, per_page = 5 } = req.body;
 
     if (!query) {
       return res.status(400).json({ error: 'No search query provided' });
@@ -190,8 +178,6 @@ exports.SearchLeads = catchAsyncError(async (req, res, next) => {
 
     // Extract title and location from the query
     const { title, location } = ExtractTitleAndLocation(query);
-    console.log('Extracted title:', title);
-    console.log('Extracted location:', location);
 
     // Prepare Apollo API parameters
     const apolloParams = {
@@ -201,9 +187,9 @@ exports.SearchLeads = catchAsyncError(async (req, res, next) => {
 
     if (title) apolloParams.person_titles = [title];
     if (location) apolloParams.person_locations = [location];
-    if (domain) apolloParams.organization_domains = [domain];
+    // if (domain) apolloParams.organization_domains = [domain];
 
-    if (!title && !location && !domain) {
+    if (!title && !location) {
       return res.status(400).json({
         error: 'Could not extract any searchable information from query',
         query: query
@@ -230,7 +216,7 @@ exports.SearchLeads = catchAsyncError(async (req, res, next) => {
       for (const lead of leads) {
         try {
           if (lead.id) {
-            const enrichedLead = await enrichLeadWithApollo(lead.id);
+            const enrichedLead = await EnrichLeadWithApollo(lead.id);
             enrichedLeads.push({
               id: lead.id,
               name: enrichedLead.name || `${enrichedLead.first_name || ''} ${enrichedLead.last_name || ''}`.trim(),
@@ -266,26 +252,24 @@ exports.SearchLeads = catchAsyncError(async (req, res, next) => {
         extractedParameters: {
           titles: title ? [title] : [],
           locations: location ? [location] : [],
-          domains: domain ? [domain] : []
+          // domains: domain ? [domain] : []
         },
         pagination: paginationInfo,
         results: enrichedLeads
       });
 
     } catch (error) {
-      console.error('Apollo API error:', error.message);
       return res.status(500).json({
         error: 'Failed to retrieve data from Apollo API',
         details: error.message,
         extractedParameters: {
           titles: title ? [title] : [],
           locations: location ? [location] : [],
-          domains: domain ? [domain] : []
+          // domains: domain ? [domain] : []
         }
       });
     }
   } catch (error) {
-    console.error('Error processing search:', error);
     return next(new ErrorHandler('Failed to process search query', 500));
   }
 });
@@ -353,7 +337,7 @@ exports.SearchLeadsByFilter = catchAsyncError(async (req, res, next) => {
       for (const lead of leads) {
         try {
           if (lead.id) {
-            const enrichedLead = await enrichLeadWithApollo(lead.id);
+            const enrichedLead = await EnrichLeadWithApollo(lead.id);
             enrichedLeads.push({
               id: lead.id,
               name: enrichedLead.name || `${enrichedLead.first_name || ''} ${enrichedLead.last_name || ''}`.trim(),

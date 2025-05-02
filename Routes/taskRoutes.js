@@ -1,25 +1,25 @@
 const express = require('express');
 const {
-    createTask,
-    getTask,
-    getAllTasks,
-    updateTask,
-    deleteTask,
-    getTasksByDateRange,
-    getTasksByFilter
+    CreateTask,
+    GetTask,
+    GetAllTasks,
+    UpdateTask,
+    DeleteTask,
+    GetTasksByDateRange,
+    GetTasksByFilter
 } = require('../Controller/taskController');
 
 const {VerifyUser} = require('../Middleware/userAuth');
 
 const router = express.Router();
 
-router.post("/", VerifyUser, createTask);
-router.get("/", VerifyUser, getAllTasks);
-router.get("/range", VerifyUser, getTasksByDateRange);
-router.get("/filter", VerifyUser, getTasksByFilter);
-router.get("/:id", VerifyUser, getTask);
-router.put("/:id", VerifyUser, updateTask);
-router.delete("/:id", VerifyUser, deleteTask);
+router.post("/", VerifyUser, CreateTask);
+router.get("/", VerifyUser, GetAllTasks);
+router.get("/range", VerifyUser, GetTasksByDateRange);
+router.get("/filter", VerifyUser, GetTasksByFilter);
+router.get("/:id", VerifyUser, GetTask);
+router.put("/:id", VerifyUser, UpdateTask);
+router.delete("/:id", VerifyUser, DeleteTask);
 
 
 
