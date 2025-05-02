@@ -1,7 +1,7 @@
 const ErrorHandler = require("../Utils/errorHandler");
 const catchAsyncError = require("../Middleware/asyncError");
 const { google } = require("googleapis");
-const { Op } = require("sequelize");
+const { Op, where } = require("sequelize");
 const dotenv = require('dotenv')
 dotenv.config({ path: "../config/config.env" });
 
@@ -213,10 +213,10 @@ exports.createEvent = catchAsyncError(async (req, res, next) => {
 
 // Get all events for a user
 exports.getEvents = catchAsyncError(async (req, res, next) => {
-  const userId = req.user.id;
+  const WorkspaceId = req.user.User.CurrentWorkspaceId;
   const { startDate, endDate } = req.query;
   
-  let whereClause = { userId };
+  let whereClause = { WorkspaceId };
   
   // Add date range filter if provided
   if (startDate && endDate) {
@@ -227,7 +227,7 @@ exports.getEvents = catchAsyncError(async (req, res, next) => {
   
   const events = await TaskModel.findAll({
     where: whereClause,
-    order: [['startDateTime', 'ASC']]
+    order: [['eventDate', 'ASC']]
   });
   
   res.status(200).json({
@@ -240,12 +240,12 @@ exports.getEvents = catchAsyncError(async (req, res, next) => {
 // Get a single event
 exports.getEvent = catchAsyncError(async (req, res, next) => {
   const eventId = req.params.id;
-  const userId = req.user.id;
+  const WorkspaceId = req.user.User.CurrentWorkspaceId;
   
   const event = await TaskModel.findOne({
     where: { 
-      id: eventId,
-      userId
+      GoogleEventId: eventId,
+      WorkspaceId
     }
   });
   
@@ -262,13 +262,13 @@ exports.getEvent = catchAsyncError(async (req, res, next) => {
 // Update an event
 exports.updateEvent = catchAsyncError(async (req, res, next) => {
   const eventId = req.params.id;
-  const userId = req.user.id;
-  const { title, description, startDateTime, endDateTime, location, attendees, reminderMinutes } = req.body;
+  const CurrentWorkspaceId = req.user.User.CurrentWorkspaceId;
+  const { Task_Title, Description, eventDate, eventTime, Meeting_Link,Extra_Notes, Person } = req.body;
   
   const event = await TaskModel.findOne({
     where: { 
-      id: eventId,
-      userId
+      GoogleEventId: eventId,
+      WorkspaceId:CurrentWorkspaceId
     }
   });
   
@@ -278,42 +278,48 @@ exports.updateEvent = catchAsyncError(async (req, res, next) => {
   
   // Update event in our database
   await event.update({
-    title: title || event.title,
-    description: description !== undefined ? description : event.description,
-    startDateTime: startDateTime || event.startDateTime,
-    endDateTime: endDateTime || event.endDateTime,
-    location: location !== undefined ? location : event.location,
-    reminderMinutes: reminderMinutes || event.reminderMinutes
+    Task_Title: Task_Title || event.Task_Title,
+    Description: Description !== undefined ? Description : event.Description,
+    eventTime: eventTime || event.eventTime,
+    Person: Person || event.Person,
+    Meeting_Link: Meeting_Link || event.Meeting_Link,
+    Extra_Notes: Extra_Notes || event.Extra_Notes,
+    eventDate: eventDate || event.eventDate,
+    GoogleEventId: event.GoogleEventId || event.GoogleEventId,
+    WorkspaceId: event.WorkspaceId || event.WorkspaceId
+
   });
   
   // If event has a Google Calendar ID, update it there too
-  if (event.googleEventId) {
-    const user = await UserModel.findByPk(userId);
+  if (event.GoogleEventId) {
+    const api = await ApiModel.findOne({
+      where: { WorkspaceId :CurrentWorkspaceId}
+
+    }); 
     
-    if (user.googleAccessToken && user.googleRefreshToken) {
-      const calendar = setupCalendarClient(user.googleAccessToken, user.googleRefreshToken);
+    if (api.GoogleCalendarAccessToken && api.GoogleCalendarRefreshToken) {
+      const calendar = setupCalendarClient(api.GoogleCalendarAccessToken, api.GoogleCalendarRefreshToken);
       
-      const formattedAttendees = attendees ? 
-        attendees.map(email => ({ email })) : 
-        [];
+        const startDateTime = new Date(`${eventDate}T${eventTime}`);
+        // Add 1 hour for end time if not specified
+        const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
       
       const googleEvent = {
-        summary: title || event.title,
-        description: description !== undefined ? description : event.description,
+        summary: Task_Title || event.Task_Title,
+        description: Description !== undefined ? Description : event.Description,
         start: {
-          dateTime: new Date(startDateTime || event.startDateTime).toISOString(),
+          dateTime: startDateTime.toISOString(),
           timeZone: 'UTC'
         },
         end: {
-          dateTime: new Date(endDateTime || event.endDateTime).toISOString(),
+          dateTime: endDateTime.toISOString(),
           timeZone: 'UTC'
         },
-        location: location !== undefined ? location : event.location,
-        attendees: formattedAttendees.length > 0 ? formattedAttendees : undefined,
+        location: Meeting_Link !== undefined ? Meeting_Link : event.Meeting_Link,
         reminders: {
           useDefault: false,
           overrides: [
-            { method: 'email', minutes: reminderMinutes || event.reminderMinutes },
+            { method: 'email', minutes: 30 },
             { method: 'popup', minutes: 10 }
           ]
         }
@@ -322,7 +328,7 @@ exports.updateEvent = catchAsyncError(async (req, res, next) => {
       try {
         await calendar.events.update({
           calendarId: 'primary',
-          eventId: event.googleEventId,
+          eventId: event.GoogleEventId,
           resource: googleEvent
         });
       } catch (error) {
@@ -341,45 +347,48 @@ exports.updateEvent = catchAsyncError(async (req, res, next) => {
 // Delete an event
 exports.deleteEvent = catchAsyncError(async (req, res, next) => {
   const eventId = req.params.id;
-  const userId = req.user.id;
-  
+  const CurrentWorkspaceId = req.user.User.CurrentWorkspaceId;
+
   const event = await TaskModel.findOne({
-    where: { 
-      id: eventId,
-      userId
+    where: {
+      GoogleEventId: eventId,
+      WorkspaceId: CurrentWorkspaceId
     }
   });
-  
+
   if (!event) {
     return next(new ErrorHandler("Event not found", 404));
   }
-  
+
   // If event has a Google Calendar ID, delete it there too
-  if (event.googleEventId) {
-    const user = await UserModel.findByPk(userId);
-    
-    if (user.googleAccessToken && user.googleRefreshToken) {
-      const calendar = setupCalendarClient(user.googleAccessToken, user.googleRefreshToken);
-      
+  if (event.GoogleEventId) {
+    const api = await ApiModel.findOne({
+      where: { WorkspaceId: CurrentWorkspaceId }
+    });
+
+    if (api?.GoogleCalendarAccessToken && api?.GoogleCalendarRefreshToken) {
+      const calendar = setupCalendarClient(api.GoogleCalendarAccessToken, api.GoogleCalendarRefreshToken);
+
       try {
         await calendar.events.delete({
           calendarId: 'primary',
-          eventId: event.googleEventId
+          eventId: event.GoogleEventId
         });
       } catch (error) {
         console.error("Google Calendar deletion failed:", error);
       }
     }
   }
-  
+
   // Delete from our database
   await event.destroy();
-  
+
   res.status(200).json({
     success: true,
     message: "Event deleted successfully"
   });
 });
+
 
 // Sync events from Google Calendar
 exports.syncGoogleEvents = catchAsyncError(async (req, res, next) => {
