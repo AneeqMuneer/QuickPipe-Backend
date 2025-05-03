@@ -104,7 +104,7 @@ exports.handleOAuthCallback = catchAsyncError(async (req, res,next) => {
     } catch (error) {
         return next(new ErrorHandler("Failed to connect Google Calendar" + error, 500));
     }
-  });
+});
 
 // Create a new event and sync with Google Calendar
 exports.createEvent = catchAsyncError(async (req, res, next) => {

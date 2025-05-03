@@ -1,12 +1,12 @@
 const express = require("express");
-const { GetAllEmailAccounts , ReadyGmailAccount , GmailAccountCallback , ReadyMicrosoftAccount , MicrosoftAccountCallback , GetDomainSuggestions , GetDomainPrices } = require("../Controller/emailAccountController");
+const { GetAllEmailAccounts , ReadyGmailAccount , GmailAccountCallback , ReadyMicrosoftAccount , MicrosoftAccountCallback , GetDomainSuggestions , GetDomainPrices , GetTlds } = require("../Controller/emailAccountController");
 const { VerifyUser } = require("../Middleware/userAuth");
 
 const router = express.Router();
 
 router.route("/GetAllEmailAccounts").get(VerifyUser, GetAllEmailAccounts);
 
-
+router.route("/GetTlds").get(VerifyUser, GetTlds);
 router.route("/GetDomainSuggestions").get(VerifyUser, GetDomainSuggestions);
 router.route("/GetDomainPrices").get(VerifyUser, GetDomainPrices);
 
