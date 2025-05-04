@@ -40,3 +40,37 @@ exports.AddApi = catchAsyncError(async (req , res , next) => {
         API
     });
 });
+
+exports.CalendarAuthCheck = catchAsyncError(async (req, res, next) => {
+    const WorkspaceId = req.user.User.CurrentWorkspaceId;
+
+    const Workspace = await WorkspaceModel.findOne({
+        where: {
+            id: WorkspaceId
+        }
+    });
+
+    if (!Workspace) {
+        return next(new ErrorHandler("Workspace doesn't exist", 400));
+    }
+
+    const Api = await APIModel.findOne({
+        where: {
+            WorkspaceId
+        }
+    });
+
+    if (!Api) {
+        return next(new ErrorHandler("API section not found" , 400));
+    }
+
+    if (!Api.GoogleCalendarRefreshToken || Api.GoogleCalendarRefreshToken === "") {
+        return res.status(200).json({
+            success: false,
+        });
+    }
+
+    res.status(200).json({
+        success: true,
+    });
+});
