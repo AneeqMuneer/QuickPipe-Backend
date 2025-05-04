@@ -170,7 +170,7 @@ exports.UpdateLeadStatus = catchAsyncError(async (req, res, next) => {
 
 exports.SearchLeads = catchAsyncError(async (req, res, next) => {
   try {
-    const { query, page = 1, per_page = 5 } = req.body;
+    const { query, page = 1, per_page = 10 } = req.body;
 
     if (!query) {
       return res.status(400).json({ error: 'No search query provided' });

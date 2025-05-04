@@ -2,6 +2,7 @@ const ErrorHandler = require("../Utils/errorHandler");
 const catchAsyncError = require("../Middleware/asyncError");
 const { google } = require('googleapis');
 const axios = require("axios");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const EmailAccountModel = require("../Model/emailAccountModel");
 
@@ -84,7 +85,7 @@ exports.GetDomainPrices = catchAsyncError(async (req, res, next) => {
     for (let i = 0; i < domains.length; i++) {
         const domain = domains[i].trim().toLowerCase();
         const url = `${process.env.PORKBUN_API_URL}/api/json/v3/domain/checkDomain/${domain}`;
-        
+
         const response = await axios.post(
             url,
             {
@@ -130,6 +131,64 @@ exports.GetDomainPrices = catchAsyncError(async (req, res, next) => {
         prices: results,
         totalPrice
     });
+});
+
+exports.CreatePaymentIntent = catchAsyncError(async (req, res, next) => {
+    const { amount } = req.body;
+
+    if (!amount || typeof amount !== 'number' || isNaN(amount)) {
+        return next(new ErrorHandler("Invalid amount provided", 400));
+    }
+
+    const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount * 100),
+        currency: "usd",
+        payment_method_types: ["card"],
+    });
+
+    res.status(200).json({
+        success: true,
+        message: "Payment intent created successfully",
+        clientSecret: paymentIntent.client_secret,
+    });
+});
+
+exports.StripeWebhook = catchAsyncError(async (req, res, next) => {
+    const sig = req.headers['stripe-signature'];
+    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    let event;
+    try {
+        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    } catch (err) {
+        console.error(`Webhook signature verification failed: ${err.message}`);
+        return next(new ErrorHandler(`Webhook signature verification failed: ${err.message}`, 400));
+    }
+
+    if (event.type === 'payment_intent.succeeded') {
+        const paymentIntent = event.data.object;
+        console.log(`PaymentIntent was successful! ID: ${paymentIntent.id}`);
+        res.status(200).json({
+            success: true,
+            message: "Payment succeeded",
+            paymentIntentId: paymentIntent.id
+        });
+    } else if (event.type === 'payment_intent.payment_failed') {
+        const paymentIntent = event.data.object;
+        console.log(`PaymentIntent failed: ${paymentIntent.id}`);
+        res.status(400).json({
+            success: false,
+            message: "Payment failed",
+            paymentIntentId: paymentIntent.id
+        });
+    } else {
+        console.log(`Unhandled event type: ${event.type}`);
+        res.status(400).json({
+            success: false,
+            message: "Unhandled event occured",
+            eventType: event.type
+        });
+    }
 });
 
 exports.BuyDomain = catchAsyncError(async (req, res, next) => {

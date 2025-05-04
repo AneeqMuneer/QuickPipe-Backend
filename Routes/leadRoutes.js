@@ -21,4 +21,5 @@ router.route("/DeleteLead/:leadid").delete(VerifyUser,DeleteLead);
 router.route("/UpdateLeadStatus/:leadid").patch(VerifyUser,UpdateLeadStatus);
 router.route('/SearchLeads').post(VerifyUser,SearchLeads);
 router.route('/SearchLeadsByFilter').post(VerifyUser,SearchLeadsByFilter);
+
 module.exports = router;
