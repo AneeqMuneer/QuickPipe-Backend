@@ -19,11 +19,11 @@ const API = sequelize.define('API', {
     GoogleCalendarAccessToken: {
         type: DataTypes.STRING,
         allowNull: true,
-      },
-      GoogleCalendarRefreshToken: {
+    },
+    GoogleCalendarRefreshToken: {
         type: DataTypes.STRING,
         allowNull: true,
-      },
+    },
     OpenAiAPI: {
         type: DataTypes.STRING,
         allowNull: true,

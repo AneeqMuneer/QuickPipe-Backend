@@ -27,6 +27,22 @@ exports.GetAllEmailAccounts = catchAsyncError(async (req, res, next) => {
 
 /* PART 1: Ready to send Accounts */
 
+exports.GetTlds = catchAsyncError(async (req, res, next) => {
+    const response = await axios.get(`${process.env.GODADDY_API_URL}/v1/domains/tlds`, {
+        headers: {
+            Authorization: `sso-key ${process.env.GODADDY_API_KEY_OTE}:${process.env.GODADDY_API_SECRET_OTE}`
+        }
+    });
+
+    const tlds = response.data.filter(tld => tld.type === "GENERIC").map(tld => tld.name).splice(0, 5);
+
+    res.status(200).json({
+        success: true,
+        message: "TLDs retrieved successfully",
+        tlds
+    });
+});
+
 exports.GetDomainSuggestions = catchAsyncError(async (req, res, next) => {
     const { domain, tlds, limit } = req.body;
 
@@ -37,7 +53,6 @@ exports.GetDomainSuggestions = catchAsyncError(async (req, res, next) => {
     const tldsList = tlds.map(tld => tld.replace(/\./g, '')).join(',');
 
     const url = `${process.env.GODADDY_API_URL}/v1/domains/suggest?query=${domain}&tlds=${tldsList}&limit=${limit || 10}&available=true`;
-    console.log(url);
 
     const response = await axios.get(url, {
         headers: {
@@ -63,49 +78,58 @@ exports.GetDomainPrices = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler("Please provide an array of domains", 400));
     }
 
-    try {
-        const pricePromises = domains.map(async (domain) => {
-            try {
-                const response = await axios.get(`${process.env.GODADDY_API_URL}/v1/domains/available?domain=${domain}&checkType=FULL`, {
-                    headers: {
-                        Authorization: `sso-key ${process.env.GODADDY_API_KEY_OTE}:${process.env.GODADDY_API_SECRET_OTE}`,
-                        'Content-Type': 'application/json',
-                    },
-                });
+    const results = [];
+    let totalPrice = 0;
 
-                return {
-                    domain,
-                    available: response.data.available,
-                    price: response.data.price / 1000000 || 0,
-                    currency: response.data.currency || 'USD',
-                    isPremium: response.data.premium || false,
-                    definitive: response.data.definitive
-                };
-            } catch (error) {
-                console.error(`Error fetching price for domain ${domain}:`, error.message);
-                return {
-                    domain,
-                    available: false,
-                    error: error.message,
-                    price: null
-                };
+    for (let i = 0; i < domains.length; i++) {
+        const domain = domains[i].trim().toLowerCase();
+        const url = `${process.env.PORKBUN_API_URL}/api/json/v3/domain/checkDomain/${domain}`;
+        
+        const response = await axios.post(
+            url,
+            {
+                secretapikey: process.env.PORKBUN_API_SECRET,
+                apikey: process.env.PORKBUN_API_KEY
+            },
+            {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             }
-        });
+        );
 
-        const priceResults = await Promise.all(pricePromises);
-        const totalPrice = priceResults.reduce((total, domain) => {
-            return domain.available ? total + domain.price : total;
-        }, 0);
+        await new Promise(resolve => setTimeout(resolve, 10000));
 
-        res.status(200).json({
-            success: true,
-            message: "Domain prices retrieved successfully",
-            prices: priceResults,
-            totalPrice
-        });
-    } catch (error) {
-        return next(new ErrorHandler(`Error retrieving domain prices: ${error.message}`, 500));
+        if (response.data.status !== 'SUCCESS') {
+            console.error(`Error checking domain ${domain}: ${response.data.message}`);
+            continue;
+        }
+
+        const result = response.data.response;
+
+        const domainInfo = {
+            domain,
+            available: result.avail === 'yes',
+            price: parseFloat(result.price) || 0,
+            renewalPrice: parseFloat(result.regularPrice) || null,
+            transferPrice: result.additional?.transfer ? parseFloat(result.additional.transfer.price) : null,
+            isPremium: result.premium
+        };
+
+        if (domainInfo.available) {
+            totalPrice += domainInfo.price;
+        }
+
+        results.push(domainInfo);
     }
+
+
+    res.status(200).json({
+        success: true,
+        message: "Domain prices retrieved successfully",
+        prices: results,
+        totalPrice
+    });
 });
 
 exports.BuyDomain = catchAsyncError(async (req, res, next) => {
