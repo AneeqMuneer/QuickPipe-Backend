@@ -10,8 +10,8 @@ const router = express.Router();
 router.route("/GetAllEmailAccounts").get(VerifyUser, GetAllEmailAccounts);
 
 router.route("/GetTlds").get(VerifyUser, GetTlds);
-router.route("/GetDomainSuggestions").get(VerifyUser, GetDomainSuggestions);
-router.route("/GetDomainPrices").get(VerifyUser, GetDomainPrices);
+router.route("/GetDomainSuggestions").post(VerifyUser, GetDomainSuggestions);
+router.route("/GetDomainPrices").post(VerifyUser, GetDomainPrices);
 router.route("/CreatePaymentIntent").post(VerifyUser, CreatePaymentIntent);
 router.route("/StripeWebhook").post(StripeWebhook);
 

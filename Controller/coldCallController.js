@@ -1,5 +1,6 @@
 const ErrorHandler = require("../Utils/errorHandler");
 const catchAsyncError = require("../Middleware/asyncError");
+const axios = require("axios");
 
 const twilio = require("twilio");
 const OpenAI = require("openai");
@@ -9,23 +10,22 @@ const client = twilio(
     process.env.TWILIO_ACCOUNT_SID_PAID,
     process.env.TWILIO_AUTH_TOKEN_PAID
 );
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
 const MyPhoneNumber = process.env.TWILIO_NUMBER_PAID;
 const ngrokLink = "https://8416-202-47-41-16.ngrok-free.app/coldCall";
 
-exports.CreateHumanCall = catchAsyncError(async (req, res, next) => {
-    const { PhoneNumber , ToNumber } = req.body;
+const { Voicebot } = require("../Utils/coldCallUtils");
 
-    if (!PhoneNumber || !ToNumber) {
-        return next(new ErrorHandler("Both 'PhoneNumber' and 'ToNumber' are required", 400));
+exports.CreateHumanCall = catchAsyncError(async (req, res, next) => {
+    const { LeadNumber, AgentNumber } = req.body;
+
+    if (!LeadNumber || !AgentNumber) {
+        return next(new ErrorHandler("Both 'LeadNumber' and 'AgentNumber' are required", 400));
     }
 
     const response = await client.calls.create({
         from: MyPhoneNumber,
-        to: PhoneNumber,
-        twiml: `<Response><Pause length="3" /><Say>Wait a moment, we are connecting your call.</Say><Dial>${ToNumber}</Dial></Response>`,
+        to: LeadNumber,
+        twiml: `<Response><Pause length="3" /><Say>Wait a moment, we are connecting your call.</Say><Dial>${AgentNumber}</Dial></Response>`,
         statusCallback: `${ngrokLink}/status`,
         statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
         statusCallbackMethod: 'POST'
@@ -36,9 +36,9 @@ exports.CreateHumanCall = catchAsyncError(async (req, res, next) => {
         message: "Test API called successfully",
         callSid: response.sid,
         status: response.status,
-        from: MyPhoneNumber,
-        to: PhoneNumber,
-        toNumber: ToNumber
+        TwilioNumber: MyPhoneNumber,
+        Lead: LeadNumber,
+        Agent: AgentNumber
     });
 });
 
@@ -55,40 +55,91 @@ exports.TwimlStatus = catchAsyncError(async (req, res, next) => {
     });
 });
 
-exports.Voicebot = catchAsyncError(async (req, res, next) => {
-    const { message } = req.body;
+exports.CreateAICall = catchAsyncError(async (req, res, next) => {
+    const { PhoneNumber } = req.body;
 
-    const prompt = `
-    You are a helpful call assistant for a company that sends cold calls to potential customers.
-    You are given a message and you need to respond to it but make sure to respond in a way that is friendly and engaging.
-    Your job is to make the customer feel comfortable and engaged with the call until the agent can take over. Till then you need to keep the conversation going.
-    If the customer is not interested and is trying to end the call, you need to say "Thank you for your time. Have a great day!" and end the call.
-    If the customer is interested and is trying to ask more information about the product or business, you need to say "Our agent can communicate with you in a moment. Please hold on." and end the call.
-    Message: ${message}
-    Make sure to respond only with the answer, no other text.
-    `;
+    if (!PhoneNumber) {
+        return next(new ErrorHandler("Phone number is required", 400));
+    }
 
-    const response = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        store: true,
-        messages: [
-            { "role": "user", "content": prompt },
-        ],
+    const call = await client.calls.create({
+        from: MyPhoneNumber,
+        to: PhoneNumber,
+        url: `${ngrokLink}/handle-ai-call`,
+        statusCallback: `${ngrokLink}/status`,
+        statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
+        statusCallbackMethod: 'POST'
     });
-
-    const answer = response.choices[0].message.content;
 
     res.status(200).send({
         success: true,
-        message: "Test API called successfully",
-        answer
+        message: "AI call initiated successfully",
+        callSid: call.sid,
+        status: call.status,
+        Lead: PhoneNumber
     });
 });
 
-exports.SwitchToAIMode = catchAsyncError(async (req, res, next) => {
-    
+exports.HandleAICall = catchAsyncError(async (req, res, next) => {
+    const twiml = new VoiceResponse();
+
+    twiml.pause({ length: 3 });
+    twiml.say({ voice: 'alice' }, "Hello, this is an automated call. How may I help you today?");
+
+    twiml.gather({
+        input: 'speech',
+        timeout: 5,
+        action: `${ngrokLink}/process-user-input`,
+        method: 'POST',
+        speechTimeout: 'auto',
+        speechModel: 'phone_call'
+    });
+
+    twiml.say({ voice: 'alice' }, "I didn't hear anything. Please call back if you need assistance.");
+    twiml.hangup();
+
+    res.type('text/xml');
+    res.send(twiml.toString());
 });
 
-exports.SwitchToHumanMode = catchAsyncError(async (req, res, next) => {
-    
+exports.ProcessUserInput = catchAsyncError(async (req, res, next) => {
+    const userSpeech = req.body.SpeechResult;
+    const callSid = req.body.CallSid;
+
+    console.log(`User said: ${userSpeech}`);
+
+    let aiResponse = "I'm sorry, I'm having trouble understanding. Let me connect you with an agent.";
+
+    try {
+        const voicebotResponse = await Voicebot(userSpeech);
+
+        if (voicebotResponse) {
+            aiResponse = voicebotResponse;
+        }
+    } catch (error) {
+        console.error("Error calling Voicebot API:", error);
+    }
+
+    const twiml = new VoiceResponse();
+
+    twiml.say({ voice: 'alice' }, aiResponse);
+
+    if (aiResponse.includes("Thank you for your time") || aiResponse.includes("Our agent can communicate with you")) {
+        twiml.hangup();
+    } else {
+        twiml.gather({
+            input: 'speech',
+            timeout: 5,
+            action: `${ngrokLink}/process-user-input`,
+            method: 'POST',
+            speechTimeout: 'auto',
+            speechModel: 'phone_call'
+        });
+
+        twiml.say({ voice: 'alice' }, "I didn't hear anything. Thank you for your time.");
+        twiml.hangup();
+    }
+
+    res.type('text/xml');
+    res.send(twiml.toString());
 });
