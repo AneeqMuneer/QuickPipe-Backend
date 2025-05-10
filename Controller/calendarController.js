@@ -96,7 +96,7 @@ exports.handleOAuthCallback = catchAsyncError(async (req, res,next) => {
       })
 
       // req.session.tokens = tokens; // If using session storage
-      res.redirect(`${process.env.FRONTEND_URL}/calendar/callback?sucess=true`); // Redirect to your frontend URL
+      res.redirect(`${process.env.FRONTEND_URL}/settings?sucess=true&type=calendar`); // Redirect to your frontend URL
       // res.status(200).json({
       //   success: true,
       //   message: 'Successfully authenticated with Google Calendar'

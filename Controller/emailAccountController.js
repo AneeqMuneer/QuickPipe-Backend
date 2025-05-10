@@ -35,7 +35,7 @@ exports.GetTlds = catchAsyncError(async (req, res, next) => {
         }
     });
 
-    const tlds = response.data.filter(tld => tld.type === "GENERIC").map(tld => tld.name).splice(0, 5);
+    const tlds = response.data.filter(tld => tld.type === "GENERIC").map(tld => tld.name).splice(0, 50);
 
     res.status(200).json({
         success: true,
