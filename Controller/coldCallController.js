@@ -1,9 +1,7 @@
 const ErrorHandler = require("../Utils/errorHandler");
 const catchAsyncError = require("../Middleware/asyncError");
-const axios = require("axios");
 
 const twilio = require("twilio");
-const OpenAI = require("openai");
 
 const { VoiceResponse } = twilio.twiml;
 const client = twilio(
@@ -11,7 +9,7 @@ const client = twilio(
     process.env.TWILIO_AUTH_TOKEN_PAID
 );
 const MyPhoneNumber = process.env.TWILIO_NUMBER_PAID;
-const ngrokLink = "https://8416-202-47-41-16.ngrok-free.app/coldCall";
+const ngrokLink = "https://19a2-202-47-41-16.ngrok-free.app/coldCall";
 
 const { Voicebot } = require("../Utils/coldCallUtils");
 
@@ -83,19 +81,19 @@ exports.CreateAICall = catchAsyncError(async (req, res, next) => {
 exports.HandleAICall = catchAsyncError(async (req, res, next) => {
     const twiml = new VoiceResponse();
 
-    twiml.pause({ length: 3 });
-    twiml.say({ voice: 'alice' }, "Hello, this is an automated call. How may I help you today?");
+    twiml.pause({ length: 2 });
+    twiml.say({ voice: 'Polly.Matthew' }, "Hello, I am quickpipe's AI assistant. How may I help you today?");
 
     twiml.gather({
         input: 'speech',
-        timeout: 5,
+        timeout: 20,
         action: `${ngrokLink}/process-user-input`,
         method: 'POST',
         speechTimeout: 'auto',
         speechModel: 'phone_call'
     });
 
-    twiml.say({ voice: 'alice' }, "I didn't hear anything. Please call back if you need assistance.");
+    twiml.say({ voice: 'Polly.Matthew' }, "I didn't hear anything. Please call back if you need assistance.");
     twiml.hangup();
 
     res.type('text/xml');
@@ -108,8 +106,7 @@ exports.ProcessUserInput = catchAsyncError(async (req, res, next) => {
 
     console.log(`User said: ${userSpeech}`);
 
-    let aiResponse = "I'm sorry, I'm having trouble understanding. Let me connect you with an agent.";
-
+    let aiResponse = " ";
     try {
         const voicebotResponse = await Voicebot(userSpeech);
 
@@ -118,25 +115,26 @@ exports.ProcessUserInput = catchAsyncError(async (req, res, next) => {
         }
     } catch (error) {
         console.error("Error calling Voicebot API:", error);
+        aiResponse = "I'm sorry, I'm having trouble understanding.";
     }
 
     const twiml = new VoiceResponse();
 
-    twiml.say({ voice: 'alice' }, aiResponse);
+    twiml.say({ voice: 'Polly.Matthew' }, aiResponse);
 
-    if (aiResponse.includes("Thank you for your time") || aiResponse.includes("Our agent can communicate with you")) {
+    if (aiResponse.includes("Thank you for your time")) {
         twiml.hangup();
     } else {
         twiml.gather({
             input: 'speech',
-            timeout: 5,
+            timeout: 20,
             action: `${ngrokLink}/process-user-input`,
             method: 'POST',
             speechTimeout: 'auto',
             speechModel: 'phone_call'
         });
 
-        twiml.say({ voice: 'alice' }, "I didn't hear anything. Thank you for your time.");
+        twiml.say({ voice: 'Polly.Matthew' }, "I didn't hear anything. Please call back if you need assistance.");
         twiml.hangup();
     }
 

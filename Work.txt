@@ -1,60 +1,82 @@
-                                    Calendar
-----------------------------------------------------------------------------------
-- CalendarConnection
-- GetAllTasks (Day , Week , Month)
-- AddTask
-- 
-
-                                Website Visitor
-----------------------------------------------------------------------------------
-- GetAllVisitors
-- GetVisitorContact
-- AddVisitorToCampaign
-- SearchVisitor
-- FilterVisitor
-
-                                AI Lead Scout
-----------------------------------------------------------------------------------
-- SearchLeads (with filters too)
-- AddLeadToCampaign
-- SkipAlreadyOwned
-
-                                Email Accounts
-----------------------------------------------------------------------------------
-- GetAllUserEmails
-- SearchEmail
-- ReadyToSendEmail
-- HassleFreeEmail
-- GmailEmail
-- Microsoft365Email
-- SMTP/IMAP Email
-- and many more
+Settings
+-----------------------------------------------------
+1. Get the organization's information from documents
+2. Get the organization's information from their website
+3. Help the model use that information
 
 
 
+Website Visitor
+-----------------------------------------------------
+1. Research an API for obtaining website visitors
+2. Implementing the API to gather website visitor
+3. Get the visitor's contact
+4. Add a visitor to the campaign
 
 
 
+Analytics
+-----------------------------------------------------
+1. Show quaterly analytics of all campaigns
+2. Show yearly analytics of all campaigns
 
 
 
+AI Assistant Voice
+-----------------------------------------------------
+1. Research voice changer
+2. Purchase it's API
+3. Allow user to submit a sample
+4. Use the sample to recreate the voice
+5. Integrate with chatbot
 
 
 
+Call Options
+-----------------------------------------------------
+1. Summary
+2. Record
+3. Mute
+4. Hold
+5. Switching
 
 
 
+Email Accounts
+-----------------------------------------------------
+1. Stripe payment integration
+2. DNS record configuration
+3. Creating new email accounts
+4. Sending emails using test emails
 
 
 
-                                    Remaining Work
-----------------------------------------------------------------------------------
-- Profile Settings -- Save image
-- Help Desk -- Save files
+Dashboard
+-----------------------------------------------------
+1. Analytics widget
+2. Live feed widget
+3. Stats widget
+4. Tasks widget
+5. Top people widget
 
-                                    Questions
-----------------------------------------------------------------------------------
-- Profile Settings -- Where to host the images?
-- Help Desk -- Does the details need to be saved or emailed only?
-- Calendar -- Can't the user add the zoom link themselves?
-- Website Visitor -- What is the difference between saving to the CRM and the campaign?
+
+
+Campaigns
+-----------------------------------------------------
+1. Running a test campaign
+2. Using the API to track the email analytics
+3. Convert analytics data to show in the campaign's analytics
+
+
+
+MultiBox
+-----------------------------------------------------
+1. Create a system to display the emails in messaging structure
+2. Compose reply using AI
+3. Identify and create task from replies
+
+
+
+AI CRM
+-----------------------------------------------------
+??????
