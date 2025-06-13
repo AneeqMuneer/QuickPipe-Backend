@@ -3,11 +3,11 @@ const catchAsyncError = require("../Middleware/asyncError");
 const { google } = require('googleapis');
 const axios = require("axios");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const xml2js = require("xml2js");
 
 const EmailAccountModel = require("../Model/emailAccountModel");
 
 const { GmailOauth2Client, GmailScopes, MicrosoftEmailAccountDetails } = require("../Utils/emailAccountsUtils");
-const { Client } = require("pg");
 const { ClientId, ClientSecret, RedirectUri, OutlookScopes } = MicrosoftEmailAccountDetails;
 
 /* Home Page */
@@ -31,7 +31,7 @@ exports.GetAllEmailAccounts = catchAsyncError(async (req, res, next) => {
 exports.GetTlds = catchAsyncError(async (req, res, next) => {
     const response = await axios.get(`${process.env.GODADDY_API_URL}/v1/domains/tlds`, {
         headers: {
-            Authorization: `sso-key ${process.env.GODADDY_API_KEY_OTE}:${process.env.GODADDY_API_SECRET_OTE}`
+            Authorization: `sso-key ${process.env.GODADDY_API_KEY}:${process.env.GODADDY_API_SECRET}`
         }
     });
 
@@ -57,7 +57,7 @@ exports.GetDomainSuggestions = catchAsyncError(async (req, res, next) => {
 
     const response = await axios.get(url, {
         headers: {
-            Authorization: `sso-key ${process.env.GODADDY_API_KEY_OTE}:${process.env.GODADDY_API_SECRET_OTE}`,
+            Authorization: `sso-key ${process.env.GODADDY_API_KEY}:${process.env.GODADDY_API_SECRET}`,
             'Content-Type': 'application/json',
         },
     });
@@ -73,83 +73,169 @@ exports.GetDomainSuggestions = catchAsyncError(async (req, res, next) => {
 });
 
 exports.GetDomainPrices = catchAsyncError(async (req, res, next) => {
-    const { domains } = req.body;
+    const { Domains } = req.body;
 
-    if (!domains || !Array.isArray(domains) || domains.length === 0) {
-        return next(new ErrorHandler("Please provide an array of domains", 400));
-    }
-
-    const results = [];
+    const results = { Available: { PremiumDomains: [], NonPremiumDomains: [] }, Unavailable: { PremiumDomains: [], NonPremiumDomains: [] }, Unregistrable: [] };
+    const CheckDomains = [];
     let totalPrice = 0;
 
-    for (let i = 0; i < domains.length; i++) {
-        const domain = domains[i].trim().toLowerCase();
-        const url = `${process.env.PORKBUN_API_URL}/api/json/v3/domain/checkDomain/${domain}`;
-
-        const response = await axios.post(
-            url,
-            {
-                secretapikey: process.env.PORKBUN_API_SECRET,
-                apikey: process.env.PORKBUN_API_KEY
-            },
-            {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
-
-        await new Promise(resolve => setTimeout(resolve, 10000));
-
-        if (response.data.status !== 'SUCCESS') {
-            console.error(`Error checking domain ${domain}: ${response.data.message}`);
-            continue;
-        }
-
-        const result = response.data.response;
-
-        const domainInfo = {
-            domain,
-            available: result.avail === 'yes',
-            price: parseFloat(result.price) || 0,
-            renewalPrice: parseFloat(result.regularPrice) || null,
-            transferPrice: result.additional?.transfer ? parseFloat(result.additional.transfer.price) : null,
-            isPremium: result.premium
-        };
-
-        if (domainInfo.available) {
-            totalPrice += domainInfo.price;
-        }
-
-        results.push(domainInfo);
+    if (Domains.length === 0) {
+        return next(new ErrorHandler("Please provide at least one domain", 400));
     }
 
+    const tlds = Domains.map(d => d.substring(d.indexOf('.') + 1));
+
+    const tldRegistrableUrl = `${process.env.BACKEND_URL}/EmailAccount/CheckTldRegisterable`;
+    const tldRegistrableResponse = await axios.post(tldRegistrableUrl, { Tlds: tlds });
+    const tldRegistrable = tldRegistrableResponse.data.registrable;
+
+    for (let i = 0; i < Domains.length; i++) {
+        if (!tldRegistrable[i]) {
+            results.Unregistrable.push(Domains[i]);
+            continue;
+        } else {
+            CheckDomains.push(Domains[i]);
+        }
+    }
+
+    console.log("Unregistrable domains skipped");
+
+    const BaseUrl = process.env.NAMECHEAP_SANDBOX === 'true'
+        ? 'https://api.sandbox.namecheap.com/xml.response'
+        : 'https://api.namecheap.com/xml.response';
+
+    const domainList = CheckDomains.map(d => d.trim().toLowerCase()).join(',');
+
+    const checkUrl = `${BaseUrl}?ApiUser=${process.env.NAMECHEAP_API_USER}&ApiKey=${process.env.NAMECHEAP_API_KEY}&UserName=${process.env.NAMECHEAP_USERNAME}&ClientIp=${process.env.CLIENT_IP}&Command=namecheap.domains.check&DomainList=${domainList}`;
+
+    const checkResponseXml = await axios.get(checkUrl);
+    const checkResponseJson = await xml2js.parseStringPromise(checkResponseXml.data, { explicitArray: false, attrkey: '$' });
+
+    if (checkResponseJson.ApiResponse.$.Status === 'ERROR') {
+        return next(new ErrorHandler(checkResponseJson.ApiResponse.Errors.Error._, 400));
+    }
+
+    const entries = Array.isArray(checkResponseJson.ApiResponse.CommandResponse.DomainCheckResult)
+        ? checkResponseJson.ApiResponse.CommandResponse.DomainCheckResult
+        : [checkResponseJson.ApiResponse.CommandResponse.DomainCheckResult];
+
+    const nonPremiumEntries = [];
+
+    for (const entry of entries) {
+        if (entry.$.Available === 'true') {
+            if (entry.$.IsPremiumName === 'true') {
+                results.Available.PremiumDomains.push({
+                    domain: entry.$.Domain,
+                    price: parseFloat(entry.$.PremiumRegistrationPrice).toFixed(2),
+                    renewalPrice: parseFloat(entry.$.PremiumRenewalPrice).toFixed(2),
+                    transferPrice: parseFloat(entry.$.PremiumTransferPrice).toFixed(2)
+                });
+
+                totalPrice += parseFloat(entry.$.PremiumRegistrationPrice);
+            } else {
+                nonPremiumEntries.push(entry.$.Domain);
+            }
+        } else {
+            if (entry.$.IsPremiumName === 'true') {
+                results.Unavailable.PremiumDomains.push(entry.$.Domain);
+            } else {
+                results.Unavailable.NonPremiumDomains.push(entry.$.Domain);
+            }
+        }
+    }
+
+    console.log("Premium domain info fetched");
+
+    const pricingBaseUrl = `${BaseUrl}?ApiUser=${process.env.NAMECHEAP_API_USER}&ApiKey=${process.env.NAMECHEAP_API_KEY}&UserName=${process.env.NAMECHEAP_USERNAME}&ClientIp=${process.env.CLIENT_IP}&Command=namecheap.users.getPricing&ProductType=DOMAIN`;
+
+    for (const domain of nonPremiumEntries) {
+        const tld = domain.substring(domain.indexOf('.') + 1);
+        const pricingUrl = pricingBaseUrl + `&ProductName=${tld}`;
+
+        const pricingResponseXml = await axios.get(pricingUrl);
+        const pricingResponseJson = await xml2js.parseStringPromise(pricingResponseXml.data, { explicitArray: false, attrkey: '$' });
+
+        if (pricingResponseJson.ApiResponse.$.Status === 'ERROR') {
+            throw new Error(pricingResponseJson.ApiResponse.Errors.Error._);
+        }
+
+        const pricingInfo = pricingResponseJson.ApiResponse.CommandResponse.UserGetPricingResult.ProductType.ProductCategory;
+
+        const pricingCategories = Array.isArray(pricingInfo) ? pricingInfo : [pricingInfo];
+
+        const registerCategory = pricingCategories.find(cat => cat['$'] && cat['$'].Name === 'register');
+        const renewCategory = pricingCategories.find(cat => cat['$'] && cat['$'].Name === 'renew');
+        const transferCategory = pricingCategories.find(cat => cat['$'] && cat['$'].Name === 'transfer');
+
+        if (!registerCategory) {
+            return next(new ErrorHandler("Register category not found in pricing info", 400));
+        }
+
+        if (!renewCategory) {
+            return next(new ErrorHandler("Renew category not found in pricing info", 400));
+        }
+
+        if (!transferCategory) {
+            return next(new ErrorHandler("Transfer category not found in pricing info", 400));
+        }
+
+        const registerPrice = parseFloat((parseFloat(registerCategory.Product.Price[0].$.RegularPrice) +
+            (registerCategory.Product.Price[0].$.RegularAdditionalCost ? parseFloat(registerCategory.Product.Price[0].$.RegularAdditionalCost) : 0)).toFixed(2));
+
+        const renewPrice = parseFloat((parseFloat(renewCategory.Product.Price[0].$.RegularPrice) +
+            (renewCategory.Product.Price[0].$.RegularAdditionalCost ? parseFloat(renewCategory.Product.Price[0].$.RegularAdditionalCost) : 0)).toFixed(2));
+
+        const transferPrice = parseFloat((parseFloat(transferCategory.Product.Price.$.RegularPrice) +
+            (transferCategory.Product.Price.$.RegularAdditionalCost ? parseFloat(transferCategory.Product.Price.$.RegularAdditionalCost) : 0)).toFixed(2));
+
+        results.Available.NonPremiumDomains.push({
+            domain,
+            registerPrice,
+            renewPrice,
+            transferPrice
+        });
+
+        totalPrice += registerPrice;
+    }
+
+    console.log("Non premium domain info fetched");
 
     res.status(200).json({
         success: true,
-        message: "Domain prices retrieved successfully",
+        message: "Domain availability and pricing retrieved",
         prices: results,
         totalPrice
     });
 });
 
 exports.CreatePaymentIntent = catchAsyncError(async (req, res, next) => {
-    const { amount } = req.body;
+    const { Amount, Domains } = req.body;
 
-    if (!amount || typeof amount !== 'number' || isNaN(amount)) {
+    if (!Amount || typeof Amount !== 'number' || isNaN(Amount)) {
         return next(new ErrorHandler("Invalid amount provided", 400));
     }
 
-    const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(amount * 100),
+    if (!Array.isArray(Domains) || Domains.length === 0) {
+        return next(new ErrorHandler("No domains provided", 400));
+    }
+
+    const intent = await stripe.paymentIntents.create({
+        amount: Amount * 100,
         currency: "usd",
         payment_method_types: ["card"],
+        metadata: {
+            Domains: JSON.stringify(Domains),
+            TotalRequested: Amount,
+            UserId: req.user?.User?.id || 'guest',
+            WorkspaceId: req.user?.User?.CurrentWorkspaceId || 'guest-workspace'
+        }
     });
 
     res.status(200).json({
         success: true,
         message: "Payment intent created successfully",
-        clientSecret: paymentIntent.client_secret,
+        clientSecret: intent.client_secret,
+        intentId: intent.id
     });
 });
 
@@ -159,71 +245,185 @@ exports.StripeWebhook = catchAsyncError(async (req, res, next) => {
 
     let event;
     try {
-        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+        event = stripe.webhooks.constructEvent(
+            req.rawBody || req.body,
+            sig,
+            endpointSecret
+        );
     } catch (err) {
         console.error(`Webhook signature verification failed: ${err.message}`);
         return next(new ErrorHandler(`Webhook signature verification failed: ${err.message}`, 400));
     }
 
-    if (event.type === 'payment_intent.succeeded') {
-        const paymentIntent = event.data.object;
-        console.log(`PaymentIntent was successful! ID: ${paymentIntent.id}`);
-        res.status(200).json({
-            success: true,
-            message: "Payment succeeded",
-            paymentIntentId: paymentIntent.id
-        });
-    } else if (event.type === 'payment_intent.payment_failed') {
-        const paymentIntent = event.data.object;
-        console.log(`PaymentIntent failed: ${paymentIntent.id}`);
-        res.status(400).json({
-            success: false,
-            message: "Payment failed",
-            paymentIntentId: paymentIntent.id
-        });
-    } else {
-        console.log(`Unhandled event type: ${event.type}`);
-        res.status(400).json({
-            success: false,
-            message: "Unhandled event occured",
-            eventType: event.type
-        });
+    switch (event.type) {
+        case 'payment_intent.created':
+            console.log(`PaymentIntent was created!`);
+            break;
+        case 'payment_intent.canceled':
+            console.log(`PaymentIntent was canceled!`);
+            break;
+        case 'payment_intent.succeeded':
+            console.log(`PaymentIntent was successful!`);
+            break;
+        case 'payment_intent.processing':
+            console.log(`PaymentIntent is processing!`);
+            break;
+        case 'payment_intent.payment_failed':
+            console.log(`PaymentIntent failed`);
+            break;
+        default:
+            console.log(`Unhandled event type: ${event.type}`);
     }
+
+    res.status(200).json({
+        success: true,
+        message: "Webhook received and processed successfully"
+    });
 });
 
-exports.BuyDomain = catchAsyncError(async (req, res, next) => {
-    const { domain, tld, years, privacy, email, firstName, lastName } = req.body;
+exports.CheckPaymentIntentStatus = catchAsyncError(async (req, res, next) => {
+    const { IntentId } = req.body;
 
-    if (!domain || !tld || !years || !privacy || !email || !firstName || !lastName) {
-        return next(new ErrorHandler("All fields are required", 400));
+    if (!IntentId) {
+        return next(new ErrorHandler("Payment intent ID is required", 400));
     }
 
-    const url = `${process.env.GODADDY_API_URL}/v1/domains/purchase`;
-    const data = {
-        domain: `${domain}${tld}`,
-        years,
-        privacy,
-        email,
-        firstName,
-        lastName
-    };
+    const paymentIntent = await stripe.paymentIntents.retrieve(IntentId);
 
-    try {
-        const response = await axios.post(url, data, {
-            headers: {
-                Authorization: `sso-key ${process.env.GODADDY_API_KEY_OTE}:${process.env.GODADDY_API_SECRET_OTE}`,
-                'Content-Type': 'application/json',
-            },
-        });
-
-        res.status(200).json({
-            success: true,
-            message: "Domain purchased successfully",
-            response: response.data
-        });
-    } catch (error) {
-        return next(new ErrorHandler(`Error purchasing domain: ${error.message}`, 500));
+    if (!paymentIntent) {
+        return next(new ErrorHandler("Payment intent not found", 400));
     }
+
+    res.status(200).json({
+        success: true,
+        message: "Payment intent status retrieved successfully",
+        status: paymentIntent.status
+    });
+});
+
+exports.CheckTldRegisterable = catchAsyncError(async (req, res, next) => {
+    const { Tlds } = req.body;
+
+    const BaseUrl = process.env.NAMECHEAP_SANDBOX === 'true'
+        ? 'https://api.sandbox.namecheap.com/xml.response'
+        : 'https://api.namecheap.com/xml.response';
+
+    const url = `${BaseUrl}/xml.response?ApiUser=${process.env.NAMECHEAP_API_USER}&ApiKey=${process.env.NAMECHEAP_API_KEY}&UserName=${process.env.NAMECHEAP_USERNAME}&ClientIp=${process.env.CLIENT_IP}&Command=namecheap.domains.gettldlist`;
+
+    const responseXml = await axios.post(url);
+    const responseJson = await xml2js.parseStringPromise(responseXml.data, { explicitArray: false, attrkey: '$' });
+
+    if (responseJson.ApiResponse.$.Status === 'ERROR') {
+        return next(new ErrorHandler(responseJson.ApiResponse.Errors.Error._, 400));
+    }
+
+    const tlds = responseJson.ApiResponse.CommandResponse.Tlds.Tld;
+
+    const tldMap = new Map(tlds.map(tld => [tld.$.Name, tld.$.IsApiRegisterable === 'true']));
+
+    const registrable = Tlds.map(name => tldMap.get(name) || false);
+
+    res.status(200).json({
+        success: true,
+        message: "Tld registerable status retrieved successfully",
+        registrable
+    });
+});
+
+exports.GetAccountDomains = catchAsyncError(async (req, res, next) => {
+    const baseUrl = process.env.NAMECHEAP_SANDBOX === 'true'
+        ? 'https://api.sandbox.namecheap.com/xml.response'
+        : 'https://api.namecheap.com/xml.response';
+
+    const url = `${baseUrl}/xml.response?ApiUser=${process.env.NAMECHEAP_API_USER}&ApiKey=${process.env.NAMECHEAP_API_KEY}&UserName=${process.env.NAMECHEAP_USERNAME}&ClientIp=${process.env.CLIENT_IP}&Command=namecheap.domains.getlist`;
+
+    const responseXml = await axios.post(url);
+    const responseJson = await xml2js.parseStringPromise(responseXml.data, { explicitArray: false, attrkey: '$' });
+
+    if (responseJson.ApiResponse.$.Status === 'ERROR') {
+        return next(new ErrorHandler(responseJson.ApiResponse.Errors.Error._, 400));
+    }
+
+    const DomainsDetails = responseJson.ApiResponse.CommandResponse.DomainGetListResult.Domain;
+
+    let domains;
+    if (Array.isArray(DomainsDetails)) {
+        domains = DomainsDetails.map(domain => domain.$.Name);
+    } else {
+        domains = DomainsDetails.$.Name;
+    }
+
+    res.status(200).json({
+        success: true,
+        message: "Account domains retrieved successfully",
+        domains,
+        DomainsDetails
+    });
+});
+
+exports.PurchaseDomains = catchAsyncError(async (req, res, next) => {
+    const { Domains, PaymentIntentId, UserDetails } = req.body;
+
+    const PaymentIntentStatusUrl = `${process.env.BACKEND_URL}/EmailAccount/CheckPaymentIntentStatus`;
+    const PaymentIntentStatusResponse = await axios.post(PaymentIntentStatusUrl, { IntentId: PaymentIntentId });
+
+    if (PaymentIntentStatusResponse.data.status !== "succeeded") {
+        return next(new ErrorHandler("Payment for this purchase has not been completed yet. Please try again later.", 400));
+    }
+
+    console.log("Payment intent status checked");
+
+    const BaseUrl = process.env.NAMECHEAP_SANDBOX === 'true'
+        ? 'https://api.sandbox.namecheap.com/xml.response'
+        : 'https://api.namecheap.com/xml.response';
+
+    const Purchased = [];
+    const Unpurchased = [];
+
+    for (const domain of Domains) {
+        const tld = domain.substring(domain.indexOf('.') + 1);
+        console.log(tld);
+        const tldsRequiringExtendedAttributes = ['us', 'eu', 'ca', 'co.uk', 'org.uk', 'me.uk', 'nu', 'com.au', 'net.au', 'org.au', 'es', 'nom.es', 'com.es', 'org.es', 'de', 'fr'];
+
+        if (tldsRequiringExtendedAttributes.includes(tld)) {
+            Unpurchased.push({ Domain: domain, Message: "This TLD is not supported yet." });
+            continue;
+        }
+
+        const DomainPurchaseUrl = `${BaseUrl}?ApiUser=${process.env.NAMECHEAP_API_USER}&ApiKey=${process.env.NAMECHEAP_API_KEY}&UserName=${process.env.NAMECHEAP_USERNAME}&ClientIp=${process.env.CLIENT_IP}&Command=namecheap.domains.create`
+            + `&DomainName=${domain}&Years=1`
+            + `&RegistrantFirstName=${UserDetails.FirstName}&RegistrantLastName=${UserDetails.LastName}&RegistrantAddress1=${UserDetails.Address}&RegistrantCity=${UserDetails.City}&RegistrantStateProvince=${UserDetails.StateProvince}&RegistrantPostalCode=${UserDetails.PostalCode}&RegistrantCountry=${UserDetails.Country}&RegistrantPhone=${UserDetails.Phone}&RegistrantEmailAddress=${UserDetails.Email}`
+            + `&TechFirstName=${UserDetails.FirstName}&TechLastName=${UserDetails.LastName}&TechAddress1=${UserDetails.Address}&TechCity=${UserDetails.City}&TechStateProvince=${UserDetails.StateProvince}&TechPostalCode=${UserDetails.PostalCode}&TechCountry=${UserDetails.Country}&TechPhone=${UserDetails.Phone}&TechEmailAddress=${UserDetails.Email}`
+            + `&AdminFirstName=${UserDetails.FirstName}&AdminLastName=${UserDetails.LastName}&AdminAddress1=${UserDetails.Address}&AdminCity=${UserDetails.City}&AdminStateProvince=${UserDetails.StateProvince}&AdminPostalCode=${UserDetails.PostalCode}&AdminCountry=${UserDetails.Country}&AdminPhone=${UserDetails.Phone}&AdminEmailAddress=${UserDetails.Email}`
+            + `&AuxBillingFirstName=${UserDetails.FirstName}&AuxBillingLastName=${UserDetails.LastName}&AuxBillingAddress1=${UserDetails.Address}&AuxBillingCity=${UserDetails.City}&AuxBillingStateProvince=${UserDetails.StateProvince}&AuxBillingPostalCode=${UserDetails.PostalCode}&AuxBillingCountry=${UserDetails.Country}&AuxBillingPhone=${UserDetails.Phone}&AuxBillingEmailAddress=${UserDetails.Email}`
+            + `&AddFreeWhoisguard=yes&WGEnabled=yes`;
+
+        try {
+            const DomainPurchaseResponse = await axios.post(DomainPurchaseUrl);
+            const DomainPurchaseResponseJson = await xml2js.parseStringPromise(DomainPurchaseResponse.data, {
+                explicitArray: false,
+                attrkey: '$'
+            });
+
+            if (DomainPurchaseResponseJson.ApiResponse.$.Status === 'ERROR') {
+                const errorMessage = DomainPurchaseResponseJson.ApiResponse.Errors.Error._;
+                Unpurchased.push({ Domain: domain, Message: errorMessage });
+            } else {
+                Purchased.push(domain);
+                console.log(`${domain} domain purchased`);
+            }
+
+        } catch (err) {
+            console.error(`Error purchasing domain ${domain}:`, err.message);
+            Unpurchased.push({ Domain: domain, Message: err.message || "Unknown error" });
+        }
+    }
+
+    res.status(200).json({
+        success: true,
+        Purchased,
+        Unpurchased,
+    });
 });
 
 /* PART 2: Hassle-free Email Setup | Gmail/Google Suite */
