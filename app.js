@@ -3,6 +3,10 @@ const app = express();
 const middleware = require("./Middleware/error");
 const cors = require("cors");
 const path = require("path");
+const { connectRedis } = require('./Utils/redisUtils');
+
+// Connect to Redis
+connectRedis();
 
 app.use(cors({
     origin: "*",

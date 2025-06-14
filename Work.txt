@@ -4,6 +4,11 @@ Email Accounts
 2. DNS record configuration
 3. Creating new email accounts
 4. Sending emails using test emails
+5. Redis connect with redis cloud
+6. Save order details
+7. Save purchased orders
+8. Save email addresses
+9. Decide which api would need to verify the user and the workspace
 
 
 

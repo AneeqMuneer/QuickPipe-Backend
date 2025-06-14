@@ -4,6 +4,7 @@ const { google } = require('googleapis');
 const axios = require("axios");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const xml2js = require("xml2js");
+const { setAccessToken } = require('../Utils/redisUtils');
 
 const EmailAccountModel = require("../Model/emailAccountModel");
 
@@ -468,51 +469,237 @@ exports.PurchaseDomains = catchAsyncError(async (req, res, next) => {
     });
 });
 
-exports.UpdateDomainDNS = catchAsyncError(async (req, res, next) => {
-    const { PurchasedDomains } = req.body;
+// Zoho URL to get auth code for a zoho account for the firs time 
+// https://accounts.zoho.com/oauth/v2/auth?response_type=code&client_id=1000.E5TVABP1XJHT9VSKR2RWYKFKL7OTXO&scope=AaaServer.profile.Read&redirect_uri=http://localhost:4000/EmailAccount/zoho/callback&access_type=offline&prompt=consent
 
-    const ConfigurationResults = {UpdateDNS: [] , FailedDNSUpdate: []};
+exports.ZohoAccountCallback = catchAsyncError(async (req, res, next) => {
+    const { code } = req.body;
+
+    if (!code) {
+        return next(new ErrorHandler("Authorization code not provided", 400));
+    }
+
+    const tokenResponse = await axios.post(`https://accounts.zoho.com/oauth/v2/token`,
+        new URLSearchParams({
+            client_id: process.env.ZOHO_CLIENT_ID,
+            client_secret: process.env.ZOHO_CLIENT_SECRET,
+            code,
+            redirect_uri: process.env.ZOHO_REDIRECT_URI,
+            grant_type: 'authorization_code',
+        }).toString(),
+        {
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        }
+    );
+
+    const { access_token, refresh_token, expires_in } = tokenResponse.data;
+
+    // Store access token in Redis
+    await setAccessToken(access_token, expires_in);
+
+    res.status(200).json({
+        success: true,
+        message: "Zoho account connected successfully",
+        access_token,
+        refresh_token,
+        expires_in
+    });
+});
+
+exports.ZohoRefreshToken = catchAsyncError(async (req, res, next) => {
+    const { RefreshToken } = req.body;
+
+    if (!RefreshToken) {
+        return next(new ErrorHandler("Refresh token not provided", 400));
+    }
+
+    const tokenResponse = await axios.post(`https://accounts.zoho.com/oauth/v2/token`,
+        new URLSearchParams({
+            client_id: process.env.ZOHO_CLIENT_ID,
+            client_secret: process.env.ZOHO_CLIENT_SECRET,
+            refresh_token: RefreshToken,
+            grant_type: 'refresh_token',
+        }).toString(),
+        {
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        }
+    );
+
+    const { access_token, refresh_token, expires_in } = tokenResponse.data;
+
+    // Update access token in Redis
+    await setAccessToken(access_token, expires_in);
+
+    res.status(200).json({
+        success: true,
+        message: "Zoho refresh token generated successfully",
+        access_token,
+        refresh_token,
+        expires_in
+    });
+});
+
+exports.UpdateDomainDNS = catchAsyncError(async (req, res, next) => {
+    const { domain } = req.body;
+
+    const ConfigurationResults = { Updated: false, Error: null };
+
+    const sld = domain.split('.')[0];
+    const tld = domain.substring(domain.indexOf('.') + 1);
 
     const BaseUrl = process.env.NAMECHEAP_SANDBOX === 'true'
         ? 'https://api.sandbox.namecheap.com/xml.response'
         : 'https://api.namecheap.com/xml.response';
 
-    for (const domain of PurchasedDomains) {
-        try {
-            const sld = domain.split('.')[0];
-            const tld = domain.substring(domain.indexOf('.') + 1);
-        
-            const DNSUpdateUrl = `${BaseUrl}?ApiUser=${process.env.NAMECHEAP_API_USER}&ApiKey=${process.env.NAMECHEAP_API_KEY}&UserName=${process.env.NAMECHEAP_USERNAME}&ClientIp=${process.env.CLIENT_IP}&Command=namecheap.domains.dns.setHosts`
-                + `&SLD=${sld}`
-                + `&TLD=${tld}`
-                + `&HostName1=@&RecordType1=MX&Address1=ASPMX.L.GOOGLE.COM.&MXPref1=1&TTL1=3600`
-                + `&HostName2=@&RecordType2=MX&Address2=ALT1.ASPMX.L.GOOGLE.COM.&MXPref2=5&TTL2=3600`
-                + `&HostName3=@&RecordType3=MX&Address3=ALT2.ASPMX.L.GOOGLE.COM.&MXPref3=5&TTL3=3600`
-                + `&HostName4=@&RecordType4=MX&Address4=ALT3.ASPMX.L.GOOGLE.COM.&MXPref4=10&TTL4=3600`
-                + `&HostName5=@&RecordType5=MX&Address5=ALT4.ASPMX.L.GOOGLE.COM.&MXPref5=10&TTL5=3600`;
-        
-            const DNSUpdateResponse = await axios.post(DNSUpdateUrl);
-            const DNSUpdateResponseJson = await xml2js.parseStringPromise(DNSUpdateResponse.data, {
-                explicitArray: false,
-                attrkey: '$'
-            });
-        
-            if (DNSUpdateResponseJson.ApiResponse.$.Status === 'OK') {
-                console.log(`MX records set for ${domain}`);
-                ConfigurationResults.UpdateDNS.push(domain);
-            } else {
-                console.error(`Failed to set MX records for ${domain}:`, DNSUpdateResponseJson.ApiResponse.Errors?.Error?._ || 'Unknown error');
-                ConfigurationResults.FailedDNSUpdate.push({Domain: domain, Message: DNSUpdateResponseJson.ApiResponse.Errors?.Error?._ || 'Unknown error'});
+    try {
+        // Step 1: Fetch existing records
+        const getHostsUrl = `${BaseUrl}?ApiUser=${process.env.NAMECHEAP_API_USER}`
+            + `&ApiKey=${process.env.NAMECHEAP_API_KEY}`
+            + `&UserName=${process.env.NAMECHEAP_USERNAME}`
+            + `&ClientIp=${process.env.CLIENT_IP}`
+            + `&Command=namecheap.domains.dns.getHosts`
+            + `&SLD=${sld}&TLD=${tld}`;
+
+        const existingDNSResponse = await axios.get(getHostsUrl);
+        const parsedExisting = await xml2js.parseStringPromise(existingDNSResponse.data, {
+            explicitArray: false,
+            attrkey: '$'
+        });
+
+        const oldHosts = parsedExisting?.ApiResponse?.CommandResponse?.DomainDNSGetHostsResult?.host || [];
+
+        console.log("Old host records fetched.");
+
+        // Step 2: Add domain to Zoho and get verification token
+        const addDomainResponse = await axios.post(
+            `https://workdrive.zoho.com/api/v1/domains`,
+            { domainName: domain },
+            { headers: { Authorization: `Zoho-oauthtoken ${process.env.ZOHO_ACCESS_TOKEN}` } }
+        );
+
+        const { verificationTxtToken } = addDomainResponse.data;
+
+        console.log("Verification token fetched.");
+
+        // Step 3: Fetch DKIM record from Zoho
+        const dkimResponse = await axios.get(
+            `https://workdrive.zoho.com/api/v1/domains/${domain}/dkim`,
+            { headers: { Authorization: `Zoho-oauthtoken ${process.env.ZOHO_ACCESS_TOKEN}` } }
+        );
+        const dkimSelector = dkimResponse.data.selector;
+        const dkimPublicKey = dkimResponse.data.publicKey;
+
+        console.log("DKIM record fetched.");
+
+        // Step 4: Build all records (preserve old + add Zoho)
+        let allRecords = [];
+        let counter = 1;
+
+        const addRecord = (name, type, address, ttl = '3600', mxPref = '') => {
+            const entry = `&HostName${counter}=${name}&RecordType${counter}=${type}&Address${counter}=${encodeURIComponent(address)}&TTL${counter}=${ttl}`;
+            const fullEntry = mxPref ? `${entry}&MXPref${counter}=${mxPref}` : entry;
+            allRecords.push(fullEntry);
+            counter++;
+        };
+
+        // Preserve important existing records
+        if (Array.isArray(oldHosts)) {
+            for (const record of oldHosts) {
+                const recordName = record.$.Name;
+                const recordType = record.$.Type;
+                const recordAddress = record.$.Address;
+                const recordTTL = record.$.TTL;
+                const recordMXPref = record.$.MXPref;
+
+                // Skip if it's a Zoho-related record we're about to add
+                if (recordName === '@' && recordType === 'MX' && recordAddress.includes('zoho.com')) {
+                    continue;
+                }
+                if (recordName === '@' && recordType === 'TXT' && recordAddress.includes('v=spf1 include:zoho.com')) {
+                    continue;
+                }
+                if (recordName.includes('_domainkey') && recordType === 'TXT' && recordAddress.includes('v=DKIM1')) {
+                    continue;
+                }
+
+                // Preserve WHOIS Guard records
+                if (recordName.includes('whoisguard')) {
+                    addRecord(recordName, recordType, recordAddress, recordTTL, recordMXPref);
+                    continue;
+                }
+
+                // Preserve SSL/HTTPS validation records
+                if (recordName.includes('_acm-validation') || recordName.includes('_domainconnect')) {
+                    addRecord(recordName, recordType, recordAddress, recordTTL, recordMXPref);
+                    continue;
+                }
+
+                // Preserve www CNAME if it exists
+                if (recordName === 'www' && recordType === 'CNAME') {
+                    addRecord(recordName, recordType, recordAddress, recordTTL, recordMXPref);
+                    continue;
+                }
+
+                // Preserve @ A record if it's not the default parking page
+                if (recordName === '@' && recordType === 'A' && !recordAddress.includes('parking')) {
+                    addRecord(recordName, recordType, recordAddress, recordTTL, recordMXPref);
+                    continue;
+                }
             }
-        } catch (dnsErr) {
-            console.error(`Error setting DNS for ${domain}:`, dnsErr.message || 'Unknown error');
-            ConfigurationResults.FailedDNSUpdate.push({Domain: domain, Message: dnsErr.message || 'Unknown error'});
         }
+
+        console.log("Important existing records preserved.");
+
+        // Add Zoho MX records
+        addRecord('@', 'MX', 'mx.zoho.com.', '3600', '10');
+        addRecord('@', 'MX', 'mx2.zoho.com.', '3600', '20');
+        addRecord('@', 'MX', 'mx3.zoho.com.', '3600', '50');
+
+        // Add SPF
+        addRecord('@', 'TXT', 'v=spf1 include:zoho.com ~all', '3600');
+
+        // Add TXT record: Zoho verification token
+        addRecord('@', 'TXT', verificationTxtToken, '3600');
+
+        // Add DKIM record: Public key
+        addRecord(`${dkimSelector}._domainkey`, 'TXT', `v=DKIM1; k=rsa; p=${dkimPublicKey}`, '3600');
+
+        console.log("New Zoho records added.");
+
+        // Step 5: Update DNS
+        const DNSUpdateUrl = `${BaseUrl}?ApiUser=${process.env.NAMECHEAP_API_USER}`
+            + `&ApiKey=${process.env.NAMECHEAP_API_KEY}`
+            + `&UserName=${process.env.NAMECHEAP_USERNAME}`
+            + `&ClientIp=${process.env.CLIENT_IP}`
+            + `&Command=namecheap.domains.dns.setHosts`
+            + `&SLD=${sld}&TLD=${tld}`
+            + allRecords.join('');
+
+        const DNSUpdateResponse = await axios.post(DNSUpdateUrl);
+        const DNSUpdateParsed = await xml2js.parseStringPromise(DNSUpdateResponse.data, {
+            explicitArray: false,
+            attrkey: '$'
+        });
+
+        if (DNSUpdateParsed.ApiResponse.$.Status === 'OK') {
+            ConfigurationResults.Updated = true;
+        } else {
+            ConfigurationResults.Error = DNSUpdateParsed.ApiResponse.Errors?.Error?._ || 'DNS update failed';
+        }
+
+        console.log("DNS updated.");
+
+    } catch (err) {
+        console.error('Error in DNS update flow:', err?.response?.data || err.message);
+        ConfigurationResults.Error = err?.response?.data?.message || err.message;
     }
 
     res.status(200).json({
-        success: true,
-        message: "DNS updated successfully",
+        success: ConfigurationResults.Updated,
         ConfigurationResults
     });
 });
@@ -532,20 +719,18 @@ exports.GetDomainDNSDetails = catchAsyncError(async (req, res, next) => {
         + `&TLD=${tld}`;
 
     const responseXml = await axios.post(url);
-    const responseJson = await xml2js.parseStringPromise(responseXml.data, { explicitArray: false, attrkey: '$' }); 
-    
+    const responseJson = await xml2js.parseStringPromise(responseXml.data, { explicitArray: false, attrkey: '$' });
+
     if (responseJson.ApiResponse.$.Status === 'ERROR') {
         return next(new ErrorHandler(responseJson.ApiResponse.Errors.Error._, 400));
     }
 
-    const dnsDetails = responseJson.ApiResponse.CommandResponse.DomainDNSGetHostsResult.host;
-
-    console.log(responseJson.ApiResponse.CommandResponse.DomainDNSGetHostsResult    );
+    const DnsDetails = responseJson.ApiResponse.CommandResponse.DomainDNSGetHostsResult.host;
 
     res.status(200).json({
         success: true,
         message: "DNS details retrieved successfully",
-        dnsDetails
+        DnsDetails: DnsDetails || []
     });
 });
 

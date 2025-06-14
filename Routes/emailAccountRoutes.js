@@ -3,7 +3,8 @@ const {
     GetAllEmailAccounts, ReadyGmailAccount, GmailAccountCallback,
     ReadyMicrosoftAccount, MicrosoftAccountCallback, GetDomainSuggestions,
     GetDomainPrices, GetTlds, CreatePaymentIntent, StripeWebhook, CheckPaymentIntentStatus,
-    PurchaseDomains, CheckTldRegisterable, GetAccountDomains, UpdateDomainDNS, GetDomainDNSDetails
+    PurchaseDomains, CheckTldRegisterable, GetAccountDomains, UpdateDomainDNS, GetDomainDNSDetails,
+    ZohoAccountCallback, ZohoRefreshToken
 } = require("../Controller/emailAccountController");
 const { VerifyUser } = require("../Middleware/userAuth");
 
@@ -20,6 +21,8 @@ router.route("/CheckPaymentIntentStatus").post(CheckPaymentIntentStatus);
 router.route("/CheckTldRegisterable").post(CheckTldRegisterable);
 router.route("/GetAccountDomains").get(GetAccountDomains);
 router.route("/PurchaseDomains").post(PurchaseDomains);
+router.route("/zoho/callback").post(ZohoAccountCallback);
+router.route("/zoho/refreshtoken").post(ZohoRefreshToken);
 router.route("/UpdateDomainDNS").post(UpdateDomainDNS);
 router.route("/GetDomainDNSDetails").post(GetDomainDNSDetails);
 
