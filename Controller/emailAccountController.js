@@ -126,9 +126,10 @@ exports.GetDomainPrices = catchAsyncError(async (req, res, next) => {
             if (entry.$.IsPremiumName === 'true') {
                 results.Available.PremiumDomains.push({
                     domain: entry.$.Domain,
-                    price: parseFloat(entry.$.PremiumRegistrationPrice).toFixed(2),
-                    renewalPrice: parseFloat(entry.$.PremiumRenewalPrice).toFixed(2),
-                    transferPrice: parseFloat(entry.$.PremiumTransferPrice).toFixed(2)
+                    price: parseFloat(parseFloat(entry.$.PremiumRegistrationPrice).toFixed(2)),
+                    renewalPrice: parseFloat(parseFloat(entry.$.PremiumRenewalPrice).toFixed(2)),
+                    transferPrice: parseFloat(parseFloat(entry.$.PremiumTransferPrice).toFixed(2)),
+                    eapFee: parseFloat(parseFloat(entry.$.EapFee).toFixed(2))
                 });
 
                 totalPrice += parseFloat(entry.$.PremiumRegistrationPrice);
@@ -363,6 +364,7 @@ exports.GetAccountDomains = catchAsyncError(async (req, res, next) => {
 
 exports.PurchaseDomains = catchAsyncError(async (req, res, next) => {
     const { Domains, PaymentIntentId, UserDetails } = req.body;
+    console.log(Domains);
 
     const PaymentIntentStatusUrl = `${process.env.BACKEND_URL}/EmailAccount/CheckPaymentIntentStatus`;
     const PaymentIntentStatusResponse = await axios.post(PaymentIntentStatusUrl, { IntentId: PaymentIntentId });
@@ -380,9 +382,17 @@ exports.PurchaseDomains = catchAsyncError(async (req, res, next) => {
     const Purchased = [];
     const Unpurchased = [];
 
-    for (const domain of Domains) {
+    const DomainPurchaseUrl = `${BaseUrl}?ApiUser=${process.env.NAMECHEAP_API_USER}&ApiKey=${process.env.NAMECHEAP_API_KEY}&UserName=${process.env.NAMECHEAP_USERNAME}&ClientIp=${process.env.CLIENT_IP}&Command=namecheap.domains.create`
+        + `&Years=1`
+        + `&RegistrantFirstName=${UserDetails.FirstName}&RegistrantLastName=${UserDetails.LastName}&RegistrantAddress1=${UserDetails.Address}&RegistrantCity=${UserDetails.City}&RegistrantStateProvince=${UserDetails.StateProvince}&RegistrantPostalCode=${UserDetails.PostalCode}&RegistrantCountry=${UserDetails.Country}&RegistrantPhone=${UserDetails.Phone}&RegistrantEmailAddress=${UserDetails.Email}`
+        + `&TechFirstName=${UserDetails.FirstName}&TechLastName=${UserDetails.LastName}&TechAddress1=${UserDetails.Address}&TechCity=${UserDetails.City}&TechStateProvince=${UserDetails.StateProvince}&TechPostalCode=${UserDetails.PostalCode}&TechCountry=${UserDetails.Country}&TechPhone=${UserDetails.Phone}&TechEmailAddress=${UserDetails.Email}`
+        + `&AdminFirstName=${UserDetails.FirstName}&AdminLastName=${UserDetails.LastName}&AdminAddress1=${UserDetails.Address}&AdminCity=${UserDetails.City}&AdminStateProvince=${UserDetails.StateProvince}&AdminPostalCode=${UserDetails.PostalCode}&AdminCountry=${UserDetails.Country}&AdminPhone=${UserDetails.Phone}&AdminEmailAddress=${UserDetails.Email}`
+        + `&AuxBillingFirstName=${UserDetails.FirstName}&AuxBillingLastName=${UserDetails.LastName}&AuxBillingAddress1=${UserDetails.Address}&AuxBillingCity=${UserDetails.City}&AuxBillingStateProvince=${UserDetails.StateProvince}&AuxBillingPostalCode=${UserDetails.PostalCode}&AuxBillingCountry=${UserDetails.Country}&AuxBillingPhone=${UserDetails.Phone}&AuxBillingEmailAddress=${UserDetails.Email}`
+        + `&AddFreeWhoisguard=yes&WGEnabled=yes`;
+
+    for (const domain of Domains.NonPremiumDomains) {
         const tld = domain.substring(domain.indexOf('.') + 1);
-        console.log(tld);
+
         const tldsRequiringExtendedAttributes = ['us', 'eu', 'ca', 'co.uk', 'org.uk', 'me.uk', 'nu', 'com.au', 'net.au', 'org.au', 'es', 'nom.es', 'com.es', 'org.es', 'de', 'fr'];
 
         if (tldsRequiringExtendedAttributes.includes(tld)) {
@@ -390,16 +400,10 @@ exports.PurchaseDomains = catchAsyncError(async (req, res, next) => {
             continue;
         }
 
-        const DomainPurchaseUrl = `${BaseUrl}?ApiUser=${process.env.NAMECHEAP_API_USER}&ApiKey=${process.env.NAMECHEAP_API_KEY}&UserName=${process.env.NAMECHEAP_USERNAME}&ClientIp=${process.env.CLIENT_IP}&Command=namecheap.domains.create`
-            + `&DomainName=${domain}&Years=1`
-            + `&RegistrantFirstName=${UserDetails.FirstName}&RegistrantLastName=${UserDetails.LastName}&RegistrantAddress1=${UserDetails.Address}&RegistrantCity=${UserDetails.City}&RegistrantStateProvince=${UserDetails.StateProvince}&RegistrantPostalCode=${UserDetails.PostalCode}&RegistrantCountry=${UserDetails.Country}&RegistrantPhone=${UserDetails.Phone}&RegistrantEmailAddress=${UserDetails.Email}`
-            + `&TechFirstName=${UserDetails.FirstName}&TechLastName=${UserDetails.LastName}&TechAddress1=${UserDetails.Address}&TechCity=${UserDetails.City}&TechStateProvince=${UserDetails.StateProvince}&TechPostalCode=${UserDetails.PostalCode}&TechCountry=${UserDetails.Country}&TechPhone=${UserDetails.Phone}&TechEmailAddress=${UserDetails.Email}`
-            + `&AdminFirstName=${UserDetails.FirstName}&AdminLastName=${UserDetails.LastName}&AdminAddress1=${UserDetails.Address}&AdminCity=${UserDetails.City}&AdminStateProvince=${UserDetails.StateProvince}&AdminPostalCode=${UserDetails.PostalCode}&AdminCountry=${UserDetails.Country}&AdminPhone=${UserDetails.Phone}&AdminEmailAddress=${UserDetails.Email}`
-            + `&AuxBillingFirstName=${UserDetails.FirstName}&AuxBillingLastName=${UserDetails.LastName}&AuxBillingAddress1=${UserDetails.Address}&AuxBillingCity=${UserDetails.City}&AuxBillingStateProvince=${UserDetails.StateProvince}&AuxBillingPostalCode=${UserDetails.PostalCode}&AuxBillingCountry=${UserDetails.Country}&AuxBillingPhone=${UserDetails.Phone}&AuxBillingEmailAddress=${UserDetails.Email}`
-            + `&AddFreeWhoisguard=yes&WGEnabled=yes`;
+        const NonPremiumDomainPurchaseUrl = DomainPurchaseUrl + `&DomainName=${domain}`;
 
         try {
-            const DomainPurchaseResponse = await axios.post(DomainPurchaseUrl);
+            const DomainPurchaseResponse = await axios.post(NonPremiumDomainPurchaseUrl);
             const DomainPurchaseResponseJson = await xml2js.parseStringPromise(DomainPurchaseResponse.data, {
                 explicitArray: false,
                 attrkey: '$'
@@ -419,10 +423,129 @@ exports.PurchaseDomains = catchAsyncError(async (req, res, next) => {
         }
     }
 
+    console.log("Non premium domains purchased");
+
+    for (const domain of Domains.PremiumDomains) {
+        const tld = domain.Name.substring(domain.Name.indexOf('.') + 1);
+
+        const tldsRequiringExtendedAttributes = ['us', 'eu', 'ca', 'co.uk', 'org.uk', 'me.uk', 'nu', 'com.au', 'net.au', 'org.au', 'es', 'nom.es', 'com.es', 'org.es', 'de', 'fr'];
+
+        if (tldsRequiringExtendedAttributes.includes(tld)) {
+            Unpurchased.push({ Domain: domain.Name, Message: "This TLD is not supported yet." });
+            continue;
+        }
+
+        const PremiumDomainPurchaseUrl = DomainPurchaseUrl + `&DomainName=${domain.Name}&IsPremiumDomain=True&PremiumPrice=${domain.Price}&EapFee=${domain.EapFee}`;
+
+        try {
+            const DomainPurchaseResponse = await axios.post(PremiumDomainPurchaseUrl);
+            const DomainPurchaseResponseJson = await xml2js.parseStringPromise(DomainPurchaseResponse.data, {
+                explicitArray: false,
+                attrkey: '$'
+            });
+
+            if (DomainPurchaseResponseJson.ApiResponse.$.Status === 'ERROR') {
+                const errorMessage = DomainPurchaseResponseJson.ApiResponse.Errors.Error._;
+                Unpurchased.push({ Domain: domain.Name, Message: errorMessage });
+            } else {
+                Purchased.push(domain.Name);
+                console.log(`${domain.Name} domain purchased`);
+            }
+
+        } catch (err) {
+            console.error(`Error purchasing domain ${domain.Name}:`, err.message);
+            Unpurchased.push({ Domain: domain.Name, Message: err.message || "Unknown error" });
+        }
+    }
+
+    console.log("Premium domains purchased");
+
     res.status(200).json({
         success: true,
+        message: "Domains purchased successfully",
         Purchased,
         Unpurchased,
+    });
+});
+
+exports.UpdateDomainDNS = catchAsyncError(async (req, res, next) => {
+    const { PurchasedDomains } = req.body;
+
+    const ConfigurationResults = {UpdateDNS: [] , FailedDNSUpdate: []};
+
+    const BaseUrl = process.env.NAMECHEAP_SANDBOX === 'true'
+        ? 'https://api.sandbox.namecheap.com/xml.response'
+        : 'https://api.namecheap.com/xml.response';
+
+    for (const domain of PurchasedDomains) {
+        try {
+            const sld = domain.split('.')[0];
+            const tld = domain.substring(domain.indexOf('.') + 1);
+        
+            const DNSUpdateUrl = `${BaseUrl}?ApiUser=${process.env.NAMECHEAP_API_USER}&ApiKey=${process.env.NAMECHEAP_API_KEY}&UserName=${process.env.NAMECHEAP_USERNAME}&ClientIp=${process.env.CLIENT_IP}&Command=namecheap.domains.dns.setHosts`
+                + `&SLD=${sld}`
+                + `&TLD=${tld}`
+                + `&HostName1=@&RecordType1=MX&Address1=ASPMX.L.GOOGLE.COM.&MXPref1=1&TTL1=3600`
+                + `&HostName2=@&RecordType2=MX&Address2=ALT1.ASPMX.L.GOOGLE.COM.&MXPref2=5&TTL2=3600`
+                + `&HostName3=@&RecordType3=MX&Address3=ALT2.ASPMX.L.GOOGLE.COM.&MXPref3=5&TTL3=3600`
+                + `&HostName4=@&RecordType4=MX&Address4=ALT3.ASPMX.L.GOOGLE.COM.&MXPref4=10&TTL4=3600`
+                + `&HostName5=@&RecordType5=MX&Address5=ALT4.ASPMX.L.GOOGLE.COM.&MXPref5=10&TTL5=3600`;
+        
+            const DNSUpdateResponse = await axios.post(DNSUpdateUrl);
+            const DNSUpdateResponseJson = await xml2js.parseStringPromise(DNSUpdateResponse.data, {
+                explicitArray: false,
+                attrkey: '$'
+            });
+        
+            if (DNSUpdateResponseJson.ApiResponse.$.Status === 'OK') {
+                console.log(`MX records set for ${domain}`);
+                ConfigurationResults.UpdateDNS.push(domain);
+            } else {
+                console.error(`Failed to set MX records for ${domain}:`, DNSUpdateResponseJson.ApiResponse.Errors?.Error?._ || 'Unknown error');
+                ConfigurationResults.FailedDNSUpdate.push({Domain: domain, Message: DNSUpdateResponseJson.ApiResponse.Errors?.Error?._ || 'Unknown error'});
+            }
+        } catch (dnsErr) {
+            console.error(`Error setting DNS for ${domain}:`, dnsErr.message || 'Unknown error');
+            ConfigurationResults.FailedDNSUpdate.push({Domain: domain, Message: dnsErr.message || 'Unknown error'});
+        }
+    }
+
+    res.status(200).json({
+        success: true,
+        message: "DNS updated successfully",
+        ConfigurationResults
+    });
+});
+
+exports.GetDomainDNSDetails = catchAsyncError(async (req, res, next) => {
+    const { Domain } = req.body;
+
+    const sld = Domain.split('.')[0];
+    const tld = Domain.substring(Domain.indexOf('.') + 1);
+
+    const BaseUrl = process.env.NAMECHEAP_SANDBOX === 'true'
+        ? 'https://api.sandbox.namecheap.com/xml.response'
+        : 'https://api.namecheap.com/xml.response';
+
+    const url = `${BaseUrl}/xml.response?ApiUser=${process.env.NAMECHEAP_API_USER}&ApiKey=${process.env.NAMECHEAP_API_KEY}&UserName=${process.env.NAMECHEAP_USERNAME}&ClientIp=${process.env.CLIENT_IP}&Command=namecheap.domains.dns.getHosts`
+        + `&SLD=${sld}`
+        + `&TLD=${tld}`;
+
+    const responseXml = await axios.post(url);
+    const responseJson = await xml2js.parseStringPromise(responseXml.data, { explicitArray: false, attrkey: '$' }); 
+    
+    if (responseJson.ApiResponse.$.Status === 'ERROR') {
+        return next(new ErrorHandler(responseJson.ApiResponse.Errors.Error._, 400));
+    }
+
+    const dnsDetails = responseJson.ApiResponse.CommandResponse.DomainDNSGetHostsResult.host;
+
+    console.log(responseJson.ApiResponse.CommandResponse.DomainDNSGetHostsResult    );
+
+    res.status(200).json({
+        success: true,
+        message: "DNS details retrieved successfully",
+        dnsDetails
     });
 });
 
