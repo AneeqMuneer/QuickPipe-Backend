@@ -1,0 +1,51 @@
+{
+  "name": "quickpipe-backend",
+  "version": "1.0.0",
+  "description": "An AI Integrated CRM system to generate and track leads to improve client relations using AI.",
+  "homepage": "https://github.com/AneeqMuneer/QuickPipe-Backend#readme",
+  "bugs": {
+    "url": "https://github.com/AneeqMuneer/QuickPipe-Backend/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AneeqMuneer/QuickPipe-Backend.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "@langchain/community": "^0.3.40",
+    "@langchain/ollama": "^0.2.0",
+    "@neondatabase/serverless": "^0.10.4",
+    "@sendgrid/mail": "^8.1.5",
+    "axios": "^1.8.4",
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "googleapis": "^146.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "moment": "^2.30.1",
+    "moment-timezone": "^0.5.48",
+    "multer": "^1.4.5-lts.1",
+    "node-cron": "^3.0.3",
+    "node-fetch": "^3.3.2",
+    "nodemailer": "^6.10.0",
+    "nodemon": "^3.1.9",
+    "openai": "^4.93.0",
+    "pg": "^8.13.3",
+    "pg-hstore": "^2.3.4",
+    "redis": "^5.5.6",
+    "sequelize": "^6.37.6",
+    "stripe": "^18.1.0",
+    "twilio": "^5.5.2",
+    "xml2js": "^0.6.2"
+  }
+}
