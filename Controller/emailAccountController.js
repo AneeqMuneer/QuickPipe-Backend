@@ -245,7 +245,7 @@ exports.CreatePaymentIntent = catchAsyncError(async (req, res, next) => {
 });
 
 exports.AddOrder = catchAsyncError(async (req, res, next) => {
-    const { Domains, TotalAmount, CardDetails, PaymentIntentId } = req.body;
+    const { Domains, TotalAmount, PaymentIntentId } = req.body;
     const BuyerId = req.user?.User?.id;
     const WorkspaceId = req.user?.User?.CurrentWorkspaceId;
 
@@ -291,16 +291,11 @@ exports.AddOrder = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler("Invalid total amount provided", 400));
     }
 
-    if (!CardDetails || !CardDetails.CardNumber || !CardDetails.ExpiryDate || !CardDetails.CVC || !CardDetails.ZipCode) {
-        return next(new ErrorHandler("Card details are required", 400));
-    }
-
     const Order = await OrderModel.create({
         BuyerId,
         WorkspaceId,
         Domains,
         TotalAmount,
-        CardDetails,
         StripePaymentIntentId: PaymentIntentId
     });
 
@@ -625,7 +620,7 @@ exports.AddDomain = catchAsyncError(async (req, res, next) => {
         });
     } catch (err) {
         if (err.name === 'SequelizeUniqueConstraintError') {
-            return next(new ErrorHandler("This domain name already exists in the database", 400));
+            return next(new ErrorHandler("This domain has already been purchased by someone else", 400));
         }
         return next(new ErrorHandler(err.message, 400));
     }

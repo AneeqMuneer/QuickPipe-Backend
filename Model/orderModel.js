@@ -32,17 +32,6 @@ const Order = sequelize.define('Order', {
         type: DataTypes.FLOAT,
         allowNull: false,
     },
-    CardDetails: {
-        type: DataTypes.JSONB,
-        allowNull: false
-    },
-    /*
-        CardDetails Object Structure:
-            CardNumber
-            ExpiryDate
-            CVC
-            ZipCode
-    */
     StripePaymentIntentId: {
         type: DataTypes.STRING,
         allowNull: true,
