@@ -9,19 +9,20 @@ const LeadModel = require("../Model/leadModel.js");
 const SequenceModel = require("../Model/sequenceModel.js");
 const ScheduleModel = require("../Model/scheduleModel.js");
 const EmailAccountModel = require("../Model/emailAccountModel.js");
+const OrderModel = require("../Model/orderModel.js");
 
 
 
 // create relationships between models here
-UserModel.hasMany(WorkspaceModel, { foreignKey: 'UserId' , sourceKey: "id" , onDelete: 'CASCADE' });
-WorkspaceModel.belongsTo(UserModel, { foreignKey: 'OwnerId' , targetKey: "id" });
-WorkspaceModel.hasMany(UserModel, { foreignKey: 'CurrentWorkspaceId', sourceKey: "id" , onDelete: 'CASCADE'});
+UserModel.hasMany(WorkspaceModel, { foreignKey: 'UserId', sourceKey: "id", onDelete: 'CASCADE' });
+WorkspaceModel.belongsTo(UserModel, { foreignKey: 'OwnerId', targetKey: "id" });
+WorkspaceModel.hasMany(UserModel, { foreignKey: 'CurrentWorkspaceId', sourceKey: "id", onDelete: 'CASCADE' });
 UserModel.belongsTo(WorkspaceModel, { foreignKey: 'CurrentWorkspaceId', targetKey: "id" });
 
-WorkspaceModel.hasMany(MemberModel, { foreignKey: 'WorkspaceId', onDelete: 'CASCADE' , sourceKey: "id"});
-MemberModel.belongsTo(WorkspaceModel, { foreignKey: 'WorkspaceId' , targetKey: "id"});
-UserModel.hasMany(MemberModel, { foreignKey: 'UserId', onDelete: 'CASCADE' , sourceKey: "id"});
-MemberModel.belongsTo(UserModel, { foreignKey: 'UserId' , targetKey: "id"});
+WorkspaceModel.hasMany(MemberModel, { foreignKey: 'WorkspaceId', onDelete: 'CASCADE', sourceKey: "id" });
+MemberModel.belongsTo(WorkspaceModel, { foreignKey: 'WorkspaceId', targetKey: "id" });
+UserModel.hasMany(MemberModel, { foreignKey: 'UserId', onDelete: 'CASCADE', sourceKey: "id" });
+MemberModel.belongsTo(UserModel, { foreignKey: 'UserId', targetKey: "id" });
 
 CampaignModel.hasOne(WorkspaceModel, { foreignKey: 'id', sourceKey: "WorkspaceId", onDelete: 'CASCADE' });
 WorkspaceModel.belongsTo(CampaignModel, { foreignKey: 'id', targetKey: "WorkspaceId" });
@@ -38,6 +39,10 @@ ScheduleModel.belongsTo(CampaignModel, { foreignKey: 'CampaignId', targetKey: "i
 EmailAccountModel.hasOne(WorkspaceModel, { foreignKey: 'id', sourceKey: "WorkspaceId", onDelete: 'CASCADE' });
 WorkspaceModel.belongsTo(EmailAccountModel, { foreignKey: 'id', targetKey: "WorkspaceId" });
 
+WorkspaceModel.hasMany(OrderModel, { foreignKey: 'WorkspaceId', sourceKey: "id", onDelete: 'CASCADE' });
+OrderModel.belongsTo(WorkspaceModel, { foreignKey: 'WorkspaceId', targetKey: "id" });
+UserModel.hasMany(OrderModel, { foreignKey: 'BuyerId', sourceKey: "id", onDelete: 'CASCADE' });
+OrderModel.belongsTo(UserModel, { foreignKey: 'BuyerId', targetKey: "id" });
 
 
 

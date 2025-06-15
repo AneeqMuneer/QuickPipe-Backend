@@ -8,21 +8,21 @@ const sql = neon(process.env.DATABASE_URL);
 
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'postgres',
-    dialectModule: require('pg'), 
+    dialectModule: require('pg'),
     logging: false,
 });
 
 const connectWithNeon = async () => {
     try {
-    
+
         const result = await sql`SELECT version()`;
         console.log(`Connected to Neon DB, version: ${result[0].version}`);
 
-    
+
         await sequelize.authenticate();
         console.log('Sequelize has connected to the Neon database successfully.');
 
-    
+
         await sequelize.sync({ alter: true });
         console.log('All models were synchronized successfully.');
     } catch (err) {

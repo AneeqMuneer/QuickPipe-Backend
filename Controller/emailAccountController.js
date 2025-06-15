@@ -5,8 +5,11 @@ const axios = require("axios");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const xml2js = require("xml2js");
 const { setAccessToken } = require('../Utils/redisUtils');
+const { Op } = require('sequelize');
 
 const EmailAccountModel = require("../Model/emailAccountModel");
+const OrderModel = require("../Model/orderModel");
+const DomainModel = require("../Model/domainModel");
 
 const { GmailOauth2Client, GmailScopes, MicrosoftEmailAccountDetails } = require("../Utils/emailAccountsUtils");
 const { ClientId, ClientSecret, RedirectUri, OutlookScopes } = MicrosoftEmailAccountDetails;
@@ -133,7 +136,7 @@ exports.GetDomainPrices = catchAsyncError(async (req, res, next) => {
                     eapFee: parseFloat(parseFloat(entry.$.EapFee).toFixed(2))
                 });
 
-                totalPrice += parseFloat(entry.$.PremiumRegistrationPrice);
+                totalPrice += parseFloat(entry.$.PremiumRegistrationPrice) + parseFloat(entry.$.EapFee);
             } else {
                 nonPremiumEntries.push(entry.$.Domain);
             }
@@ -238,6 +241,103 @@ exports.CreatePaymentIntent = catchAsyncError(async (req, res, next) => {
         message: "Payment intent created successfully",
         clientSecret: intent.client_secret,
         intentId: intent.id
+    });
+});
+
+exports.AddOrder = catchAsyncError(async (req, res, next) => {
+    const { Domains, TotalAmount, CardDetails, PaymentIntentId } = req.body;
+    const BuyerId = req.user?.User?.id;
+    const WorkspaceId = req.user?.User?.CurrentWorkspaceId;
+
+    if (!BuyerId || !WorkspaceId || !Domains || !TotalAmount || !PaymentIntentId) {
+        return next(new ErrorHandler("All required fields are not provided", 400));
+    }
+
+    for (const domain of Domains) {
+        if (!domain.Name || !domain.Price || !domain.Type) {
+            return next(new ErrorHandler("All required fields are not provided", 400));
+        }
+
+        if (domain.Type === "Premium") {
+            if (!domain.EapFee || domain.EapFee < 0 || typeof domain.EapFee !== 'number' || isNaN(domain.EapFee)) {
+                return next(new ErrorHandler("EapFee is required for premium domains", 400));
+            }
+        }
+
+        if (domain.Price < 0 || typeof domain.Price !== 'number' || isNaN(domain.Price)) {
+            return next(new ErrorHandler("Invalid price provided", 400));
+        }
+
+        if (domain.Duration) {
+            if (domain.Duration < 0 || typeof domain.Duration !== 'number' || isNaN(domain.Duration)) {
+                return next(new ErrorHandler("Invalid duration provided", 400));
+            }
+        } else {
+            domain.Duration = 1;
+        }
+    }
+
+    if (TotalAmount < 0 || typeof TotalAmount !== 'number' || isNaN(TotalAmount)) {
+        return next(new ErrorHandler("Invalid price provided", 400));
+    }
+
+    const totalPrice = Domains.reduce((acc, domain) => {
+        const basePrice = domain.Price;
+        const eapFee = domain.Type === "Premium" ? domain.EapFee : 0;
+        return acc + basePrice + eapFee;
+    }, 0);
+
+    if (TotalAmount !== totalPrice) {
+        return next(new ErrorHandler("Invalid total amount provided", 400));
+    }
+
+    if (!CardDetails || !CardDetails.CardNumber || !CardDetails.ExpiryDate || !CardDetails.CVC || !CardDetails.ZipCode) {
+        return next(new ErrorHandler("Card details are required", 400));
+    }
+
+    const Order = await OrderModel.create({
+        BuyerId,
+        WorkspaceId,
+        Domains,
+        TotalAmount,
+        CardDetails,
+        StripePaymentIntentId: PaymentIntentId
+    });
+
+    res.status(200).json({
+        success: true,
+        message: "Order created successfully",
+        Order
+    });
+});
+
+exports.UpdateOrderStatus = catchAsyncError(async (req, res, next) => {
+    const { OrderId, StripeStatus, PurchaseStatus } = req.body;
+
+    if (!OrderId) {
+        return next(new ErrorHandler("Order ID is required", 400));
+    }
+
+    const Order = await OrderModel.findByPk(OrderId);
+
+    if (!Order) {
+        return next(new ErrorHandler("Order not found", 400));
+    }
+
+    if (StripeStatus) {
+        Order.StripePaymentStatus = StripeStatus;
+    }
+
+    if (PurchaseStatus) {
+        Order.DomainPurchaseStatus = PurchaseStatus;
+    }
+
+    await Order.save();
+
+    res.status(200).json({
+        success: true,
+        message: "Order status updated successfully",
+        Order
     });
 });
 
@@ -469,6 +569,90 @@ exports.PurchaseDomains = catchAsyncError(async (req, res, next) => {
     });
 });
 
+exports.AddDomain = catchAsyncError(async (req, res, next) => {
+    const { OrderId, DomainName, Price, RenewalPrice, TransferPrice, EapFee, Type } = req.body;
+
+    if (!OrderId || !DomainName) {
+        return next(new ErrorHandler("All required fields are not provided", 400));
+    }
+
+    if (Type === "Premium") {
+        if (EapFee < 0 || typeof EapFee !== 'number' || isNaN(EapFee)) {
+            return next(new ErrorHandler("EapFee is required for premium domains", 400));
+        }
+    }
+
+    if (Price < 0 || typeof Price !== 'number' || isNaN(Price)) {
+        return next(new ErrorHandler("Invalid price provided", 400));
+    }
+
+    if (RenewalPrice < 0 || typeof RenewalPrice !== 'number' || isNaN(RenewalPrice)) {
+        return next(new ErrorHandler("Invalid renewal price provided", 400));
+    }
+
+    if (TransferPrice < 0 || typeof TransferPrice !== 'number' || isNaN(TransferPrice)) {
+        return next(new ErrorHandler("Invalid transfer price provided", 400));
+    }
+
+    if (req.body.Duration) {
+        if (req.body.Duration < 0 || typeof req.body.Duration !== 'number' || isNaN(req.body.Duration)) {
+            return next(new ErrorHandler("Invalid duration provided", 400));
+        }
+    }
+
+    const Order = await OrderModel.findByPk(OrderId);
+
+    if (!Order) {
+        return next(new ErrorHandler("Order not found", 400));
+    }
+
+    try {
+        const Domain = await DomainModel.create({
+            OrderId,
+            DomainName,
+            Price,
+            RenewalPrice,
+            TransferPrice,
+            EapFee: Type === "Premium" ? EapFee : null,
+            Type,
+            Duration: req.body.Duration || 1
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "Domain added successfully",
+            Domain
+        });
+    } catch (err) {
+        if (err.name === 'SequelizeUniqueConstraintError') {
+            return next(new ErrorHandler("This domain name already exists in the database", 400));
+        }
+        return next(new ErrorHandler(err.message, 400));
+    }
+});
+
+exports.GetDomains = catchAsyncError(async (req, res, next) => {
+    const { CurrentWorkspaceId } = req.user?.User;
+
+    const Orders = await OrderModel.findAll({
+        where: { WorkspaceId: CurrentWorkspaceId }
+    });
+
+    if (Orders.length === 0) {
+        return next(new ErrorHandler("No orders found", 400));
+    }
+
+    const Domains = await DomainModel.findAll({
+        where: { OrderId: { [Op.in]: Orders.map(order => order.id) } }
+    });
+
+    res.status(200).json({
+        success: true,
+        message: "Domains retrieved successfully",
+        domains: Domains
+    });
+});
+
 // Zoho URL to get auth code for a zoho account for the firs time 
 // https://accounts.zoho.com/oauth/v2/auth?response_type=code&client_id=1000.E5TVABP1XJHT9VSKR2RWYKFKL7OTXO&scope=AaaServer.profile.Read&redirect_uri=http://localhost:4000/EmailAccount/zoho/callback&access_type=offline&prompt=consent
 
@@ -509,17 +693,11 @@ exports.ZohoAccountCallback = catchAsyncError(async (req, res, next) => {
 });
 
 exports.ZohoRefreshToken = catchAsyncError(async (req, res, next) => {
-    const { RefreshToken } = req.body;
-
-    if (!RefreshToken) {
-        return next(new ErrorHandler("Refresh token not provided", 400));
-    }
-
     const tokenResponse = await axios.post(`https://accounts.zoho.com/oauth/v2/token`,
         new URLSearchParams({
             client_id: process.env.ZOHO_CLIENT_ID,
             client_secret: process.env.ZOHO_CLIENT_SECRET,
-            refresh_token: RefreshToken,
+            refresh_token: process.env.ZOHO_REFRESH_TOKEN,
             grant_type: 'refresh_token',
         }).toString(),
         {
@@ -536,10 +714,7 @@ exports.ZohoRefreshToken = catchAsyncError(async (req, res, next) => {
 
     res.status(200).json({
         success: true,
-        message: "Zoho refresh token generated successfully",
-        access_token,
-        refresh_token,
-        expires_in
+        message: "Zoho access token refreshed successfully",
     });
 });
 

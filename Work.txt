@@ -1,22 +1,22 @@
 Email Accounts
 -----------------------------------------------------
-1. Stripe payment integration
+1. Stripe payment integration ✅
 2. DNS record configuration
 3. Creating new email accounts
-4. Sending emails using test emails
-5. Redis connect with redis cloud
-6. Save order details
-7. Save purchased orders
-8. Save email addresses
-9. Decide which api would need to verify the user and the workspace
+4. Redis connect with redis cloud
+5. Save order details ✅
+6. Save purchased domains ✅
+7. Save email addresses
+8. Decide which api would need to verify the user and the workspace ✅
 
 
 
 Campaigns
 -----------------------------------------------------
-1. Running a test campaign
-2. Using the API to track the email analytics
-3. Convert analytics data to show in the campaign's analytics
+1. Sending emails using test emails
+2. Running a test campaign
+3. Using the API to track the email analytics
+4. Convert analytics data to show in the campaign's analytics
 
 
 
