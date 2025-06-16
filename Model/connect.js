@@ -9,6 +9,8 @@ const LeadModel = require("../Model/leadModel.js");
 const SequenceModel = require("../Model/sequenceModel.js");
 const ScheduleModel = require("../Model/scheduleModel.js");
 const EmailAccountModel = require("../Model/emailAccountModel.js");
+const CallModel = require("../Model/callModel.js");
+const MeetingModel = require("../Model/meetingModel.js");
 const OrderModel = require("../Model/orderModel.js");
 
 
@@ -38,6 +40,15 @@ ScheduleModel.belongsTo(CampaignModel, { foreignKey: 'CampaignId', targetKey: "i
 
 EmailAccountModel.hasOne(WorkspaceModel, { foreignKey: 'id', sourceKey: "WorkspaceId", onDelete: 'CASCADE' });
 WorkspaceModel.belongsTo(EmailAccountModel, { foreignKey: 'id', targetKey: "WorkspaceId" });
+
+LeadModel.hasMany(CallModel, { foreignKey: 'LeadId', sourceKey: 'id', onDelete: 'CASCADE' });
+CallModel.belongsTo(LeadModel, { foreignKey: 'LeadId', targetKey: 'id' });
+
+LeadModel.hasMany(MeetingModel, { foreignKey: 'LeadId', sourceKey: 'id', onDelete: 'CASCADE' });
+MeetingModel.belongsTo(LeadModel, { foreignKey: 'LeadId', targetKey: 'id' });
+
+UserModel.hasMany(MeetingModel, { foreignKey: 'HostId', sourceKey: 'id', onDelete: 'CASCADE' });
+MeetingModel.belongsTo(UserModel, { foreignKey: 'HostId', targetKey: 'id' });
 
 WorkspaceModel.hasMany(OrderModel, { foreignKey: 'WorkspaceId', sourceKey: "id", onDelete: 'CASCADE' });
 OrderModel.belongsTo(WorkspaceModel, { foreignKey: 'WorkspaceId', targetKey: "id" });

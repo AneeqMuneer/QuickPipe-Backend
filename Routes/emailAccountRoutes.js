@@ -4,7 +4,8 @@ const {
     ReadyMicrosoftAccount, MicrosoftAccountCallback, GetDomainSuggestions,
     GetDomainPrices, GetTlds, CreatePaymentIntent, StripeWebhook, CheckPaymentIntentStatus,
     PurchaseDomains, CheckTldRegisterable, GetAccountDomains, UpdateDomainDNS, GetDomainDNSDetails,
-    ZohoAccountCallback, ZohoRefreshToken, AddOrder, UpdateOrderStatus, AddDomain, GetDomains
+    ZohoAccountCallback, ZohoRefreshToken, AddOrder, UpdateOrderStatus, AddDomain, GetDomains,
+    CreateZohoMailbox
 } = require("../Controller/emailAccountController");
 const { VerifyUser } = require("../Middleware/userAuth");
 
@@ -29,13 +30,14 @@ router.route("/GetDomains").get(VerifyUser, GetDomains);
 
 router.route("/zoho/refreshtoken").get(VerifyUser, ZohoRefreshToken);
 router.route("/UpdateDomainDNS").post(VerifyUser, UpdateDomainDNS);
-router.route("/GetDomainDNSDetails").post(VerifyUser, GetDomainDNSDetails);
+router.route("/CreateZohoMailbox").post(VerifyUser, CreateZohoMailbox);
 
 // APIs for testing purposes
 router.route("/GetTlds").get(VerifyUser, GetTlds);
 router.route("/CheckTldRegisterable").post(CheckTldRegisterable);
 router.route("/GetAccountDomains").get(GetAccountDomains);
 router.route("/zoho/callback").post(ZohoAccountCallback);
+router.route("/GetDomainDNSDetails").post(VerifyUser, GetDomainDNSDetails);
 
 
 /* PART 2: Hassle-free Email Setup | Gmail/Google Suite */

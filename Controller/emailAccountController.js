@@ -4,14 +4,14 @@ const { google } = require('googleapis');
 const axios = require("axios");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const xml2js = require("xml2js");
-const { setAccessToken } = require('../Utils/redisUtils');
+const { setAccessToken, getAccessToken } = require('../Utils/redisUtils');
 const { Op } = require('sequelize');
 
 const EmailAccountModel = require("../Model/emailAccountModel");
 const OrderModel = require("../Model/orderModel");
 const DomainModel = require("../Model/domainModel");
 
-const { GmailOauth2Client, GmailScopes, MicrosoftEmailAccountDetails } = require("../Utils/emailAccountsUtils");
+const { GmailOauth2Client, GmailScopes, MicrosoftEmailAccountDetails, GenerateRandomPassword, SendZohoAccountCreationEmail } = require("../Utils/emailAccountsUtils");
 const { ClientId, ClientSecret, RedirectUri, OutlookScopes } = MicrosoftEmailAccountDetails;
 
 /* Home Page */
@@ -675,7 +675,6 @@ exports.ZohoAccountCallback = catchAsyncError(async (req, res, next) => {
 
     const { access_token, refresh_token, expires_in } = tokenResponse.data;
 
-    // Store access token in Redis
     await setAccessToken(access_token, expires_in);
 
     res.status(200).json({
@@ -902,6 +901,54 @@ exports.GetDomainDNSDetails = catchAsyncError(async (req, res, next) => {
         message: "DNS details retrieved successfully",
         DnsDetails: DnsDetails || []
     });
+});
+
+exports.CreateZohoMailbox = catchAsyncError(async (req, res, next) => {
+    const { UserName, EmailUserName, DomainName, AlertEmailAddress } = req.body;
+
+    const EmailAddress = EmailUserName.toLowerCase() + '@' + DomainName.toLowerCase();
+    const Password = GenerateRandomPassword();
+
+    const AccessToken = await getAccessToken();
+
+    try {
+        const response = await axios.post(
+            `https://mail.zoho.com/api/organization/${process.env.ZOHO_ORG_ID}/accounts`,
+            {
+                primaryEmailAddress: EmailAddress,
+                password: Password,
+                firstName: UserName.split(" ")[0] || UserName,
+                lastName: UserName.split(" ")[1] || "",
+                displayName: UserName,
+                userExpiry: 100,
+                role: "member", // member, admin, superadmin
+                country: "us",
+                language: "en",
+                timeZone: "America/New_York",
+                oneTimePassword: true,
+            },
+            {
+                headers: {
+                    Authorization: `Zoho-oauthtoken ${AccessToken}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+            }
+        );
+
+        console.log("Zoho Account Response:", response.data);
+
+        await SendZohoAccountCreationEmail(AlertEmailAddress, EmailAddress, Password);
+
+        res.status(200).json({
+            success: true,
+            message: "Zoho mail account created successfully",
+            EmailAddress,
+        });
+    } catch (error) {
+        console.error('Error creating Zoho mail account:', error?.response?.data || error.message);
+        return next(new ErrorHandler("Failed to create Zoho mail account", 500));
+    }
 });
 
 /* PART 2: Hassle-free Email Setup | Gmail/Google Suite */
