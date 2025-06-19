@@ -9,7 +9,8 @@ const { connectRedis } = require('./Utils/redisUtils');
 connectRedis();
 
 app.use(cors({
-    origin: "*",
+    origin: 'http://localhost:5173',
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -51,6 +52,8 @@ const helpRoutes = require("./Routes/helpRoutes");
 const taskRoutes = require('./Routes/taskRoutes');
 const emailAccountRoutes = require("./Routes/emailAccountRoutes");
 const coldCallRoutes = require("./Routes/coldCallRoutes");
+const callRoutes = require('./Routes/callRoutes');
+const meetingRoutes = require('./Routes/meetingRoutes');
 
 app.use("/user", UserRoutes);
 app.use("/workspace", WorkspaceRoutes)
@@ -64,6 +67,8 @@ app.use("/help", helpRoutes);
 app.use('/tasks', taskRoutes);
 app.use('/EmailAccount', emailAccountRoutes);
 app.use('/coldCall', coldCallRoutes);
+app.use('/calls', callRoutes);
+app.use('/meetings', meetingRoutes);
 
 // Render payment page
 app.get('/payment', (req, res) => {

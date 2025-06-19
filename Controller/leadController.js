@@ -4,7 +4,7 @@ const ErrorHandler = require("../Utils/errorHandler");
 
 require('dotenv').config();
 
-const { ExtractTitleAndLocation , EnrichLeadWithApollo } = require('../Utils/leadUtils');
+const { ExtractTitleAndLocation, EnrichLeadWithApollo, ExtractAllPossible } = require('../Utils/leadUtils');
 
 const LeadModel = require("../Model/leadModel");
 const CampaignModel = require("../Model/campaignModel");
@@ -170,26 +170,57 @@ exports.UpdateLeadStatus = catchAsyncError(async (req, res, next) => {
 
 exports.SearchLeads = catchAsyncError(async (req, res, next) => {
   try {
-    const { query, page = 1, per_page = 10 } = req.body;
+    const { query, page = 1, per_page = 10, person_titles, industries } = req.body;
 
     if (!query) {
       return res.status(400).json({ error: 'No search query provided' });
     }
 
-    // Extract title and location from the query
-    const { title, location } = ExtractTitleAndLocation(query);
+    // Extract as much as possible from the query
+    const { title, location, company, keyword } = ExtractAllPossible(query);
 
-    // Prepare Apollo API parameters
+    // Prepare Apollo API parameters (only supported ones)
     const apolloParams = {
       per_page: parseInt(per_page),
       page: parseInt(page)
     };
 
-    if (title) apolloParams.person_titles = [title];
-    if (location) apolloParams.person_locations = [location];
-    // if (domain) apolloParams.organization_domains = [domain];
+    // Use filters from request body if provided, otherwise use extracted from query
+    if (person_titles && Array.isArray(person_titles) && person_titles.length > 0) {
+      apolloParams.person_titles = person_titles;
+    } else if (title) {
+      apolloParams.person_titles = [title];
+    }
 
-    if (!title && !location) {
+    // Apollo expects canonical industry values. Map common frontend values to Apollo's expected values.
+    const industryMap = {
+      'Tech': 'information technology',
+      'IT': 'information technology',
+      'Information Technology': 'information technology',
+      'Finance': 'financial services',
+      'Healthcare': 'hospital & health care',
+      'Retail': 'retail',
+      // Add more mappings as needed
+    };
+    // See: https://docs.peopledatalabs.com/docs/industries for Apollo's canonical industry values
+
+    let mappedIndustries = industries && Array.isArray(industries)
+      ? industries.map(ind => industryMap[ind] || ind)
+      : undefined;
+
+    if (mappedIndustries && mappedIndustries.length > 0) {
+      apolloParams.organization_industries = mappedIndustries;
+    }
+
+    if (location) apolloParams.person_locations = [location];
+    if (company) apolloParams.organization_names = [company];
+    if (keyword) apolloParams.q_keywords = keyword;
+
+    // Log Apollo API parameters for every request
+    console.log('Apollo API params:', apolloParams);
+
+    // Only error if nothing at all is found
+    if (!title && !location && !company && !keyword) {
       return res.status(400).json({
         error: 'Could not extract any searchable information from query',
         query: query
@@ -252,20 +283,24 @@ exports.SearchLeads = catchAsyncError(async (req, res, next) => {
         extractedParameters: {
           titles: title ? [title] : [],
           locations: location ? [location] : [],
-          // domains: domain ? [domain] : []
+          companies: company ? [company] : [],
+          keywords: keyword ? [keyword] : []
         },
         pagination: paginationInfo,
         results: enrichedLeads
       });
 
     } catch (error) {
+      // Log and return Apollo API error details for easier debugging
+      console.error('Apollo API error:', error?.response?.data || error.message);
       return res.status(500).json({
         error: 'Failed to retrieve data from Apollo API',
-        details: error.message,
+        details: error?.response?.data || error.message,
         extractedParameters: {
           titles: title ? [title] : [],
           locations: location ? [location] : [],
-          // domains: domain ? [domain] : []
+          companies: company ? [company] : [],
+          keywords: keyword ? [keyword] : []
         }
       });
     }

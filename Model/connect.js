@@ -62,3 +62,17 @@ dbConnect().then(() => {
 }).catch(err => {
     console.error('Error connecting database:', err);
 });
+
+module.exports = {
+  User: UserModel,
+  Workspace: WorkspaceModel,
+  Member: MemberModel,
+  Campaign: CampaignModel,
+  Lead: LeadModel,
+  Sequence: SequenceModel,
+  Schedule: ScheduleModel,
+  EmailAccount: EmailAccountModel,
+  Calls: CallModel,
+  Meetings: MeetingModel,
+  Order: OrderModel
+};
