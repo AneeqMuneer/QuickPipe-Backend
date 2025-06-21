@@ -1,7 +1,7 @@
 const express = require("express");
 const { AddFeedback, SendFeedbackMail } = require("../Controller/helpController");
 const { VerifyUser } = require("../Middleware/userAuth");
-const upload = require("../Middleware/multer.js");
+const { upload } = require("../Middleware/multer.js");
 
 const router = express.Router();
 
@@ -18,6 +18,6 @@ const handleMulterErrors = (req, res, next) => {
     });
 };
 
-router.route("/AddFeedback").post(handleMulterErrors , VerifyUser, SendFeedbackMail);
+router.route("/AddFeedback").post(handleMulterErrors, VerifyUser, SendFeedbackMail);
 
 module.exports = router;

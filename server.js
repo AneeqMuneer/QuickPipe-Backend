@@ -1,6 +1,5 @@
 const app = require("./app.js");
 const dotenv = require("dotenv");
-const { dbConnect } = require("./Data/db.js");
 
 process.on("uncaughtException", (err) => {
     console.log(`Error: ${err.message}`);

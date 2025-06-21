@@ -127,3 +127,33 @@ exports.EnrichLeadWithApollo = async (apolloId) => {
         throw new Error(`Failed to enrich lead: ${error.message}`);
     }
 }
+
+exports.ExtractAllPossible = (description) => {
+    const { title, location } = exports.ExtractTitleAndLocation(description);
+
+    // Company extraction: look for words after 'at', 'from', or 'in' if not already used for location
+    let company = null;
+    let keyword = null;
+
+    // Try to extract company name (e.g., "Manager at Google")
+    const companyPattern = /(?:at|from|in)\s+([A-Za-z0-9&.\- ]{2,})/i;
+    const companyMatch = description.match(companyPattern);
+    if (companyMatch && (!location || companyMatch[1] !== location)) {
+        company = companyMatch[1].trim();
+    }
+
+    // Keyword extraction: fallback to any word(s) not matched as title/location/company
+    // (very basic: just use the whole query if nothing else is found)
+    if (!title && !location && !company) {
+        // Remove common stopwords for better keyword extraction
+        const stopwords = ['in', 'at', 'from', 'the', 'a', 'an', 'for', 'to', 'with', 'and', 'or', 'of'];
+        keyword = description
+            .split(/\s+/)
+            .filter(word => !stopwords.includes(word.toLowerCase()))
+            .join(' ')
+            .trim();
+        if (keyword.length < 2) keyword = null;
+    }
+
+    return { title, location, company, keyword };
+};

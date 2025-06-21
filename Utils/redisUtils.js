@@ -55,7 +55,7 @@ const getAccessToken = async () => {
 
             console.log('New access token saved.');
         }
-
+        console.log(token);
         return token;
     } catch (error) {
         console.error('Error getting or refreshing access token:', error.response?.data || error.message);

@@ -3,9 +3,10 @@ const {
     GetAllEmailAccounts, ReadyGmailAccount, GmailAccountCallback,
     ReadyMicrosoftAccount, MicrosoftAccountCallback, GetDomainSuggestions,
     GetDomainPrices, GetTlds, CreatePaymentIntent, StripeWebhook, CheckPaymentIntentStatus,
-    PurchaseDomains, CheckTldRegisterable, GetAccountDomains, UpdateDomainDNS, GetDomainDNSDetails,
+    PurchaseDomains, CheckTldRegisterable, GetAccountDomains, ConfigureDomainEmailHosting, GetDomainDNSDetails,
     ZohoAccountCallback, ZohoRefreshToken, AddOrder, UpdateOrderStatus, AddDomain, GetDomains,
-    CreateZohoMailbox
+    CreateZohoMailbox, VerifyDomainEmailHosting, SwitchEmail2Forwarding, SwitchForwarding2Email, 
+    ConfigureDomainForwarding
 } = require("../Controller/emailAccountController");
 const { VerifyUser } = require("../Middleware/userAuth");
 
@@ -29,16 +30,19 @@ router.route("/AddDomain").post(VerifyUser, AddDomain);
 router.route("/GetDomains").get(VerifyUser, GetDomains);
 
 router.route("/zoho/refreshtoken").get(VerifyUser, ZohoRefreshToken);
-router.route("/UpdateDomainDNS").post(VerifyUser, UpdateDomainDNS);
+router.route("/ConfigureDomainForwarding").post(VerifyUser, ConfigureDomainForwarding);
+router.route("/SwitchForwarding2Email").post(VerifyUser, SwitchForwarding2Email);
+router.route("/ConfigureDomainEmailHosting").post(VerifyUser, ConfigureDomainEmailHosting);
+router.route("/VerifyDomainEmailHosting").post(VerifyUser, VerifyDomainEmailHosting);
+router.route("/SwitchEmail2Forwarding").post(VerifyUser, SwitchEmail2Forwarding);
 router.route("/CreateZohoMailbox").post(VerifyUser, CreateZohoMailbox);
 
 // APIs for testing purposes
-router.route("/GetTlds").get(VerifyUser, GetTlds);
+router.route("/GetTlds").get(GetTlds);
 router.route("/CheckTldRegisterable").post(CheckTldRegisterable);
 router.route("/GetAccountDomains").get(GetAccountDomains);
 router.route("/zoho/callback").post(ZohoAccountCallback);
-router.route("/GetDomainDNSDetails").post(VerifyUser, GetDomainDNSDetails);
-
+router.route("/GetDomainDNSDetails").post(GetDomainDNSDetails);
 
 /* PART 2: Hassle-free Email Setup | Gmail/Google Suite */
 router.route("/ReadyGmailAccount").get(VerifyUser, ReadyGmailAccount);

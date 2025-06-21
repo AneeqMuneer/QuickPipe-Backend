@@ -25,7 +25,7 @@ const EmailAccount = sequelize.define('EmailAccount', {
         }
     },
     Provider: {
-        type: DataTypes.ENUM("Google", "Microsoft"),
+        type: DataTypes.ENUM("Google", "Microsoft", "Zoho"),
         allowNull: false,
     },
     RefreshToken: {

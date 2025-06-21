@@ -8,6 +8,7 @@ const jwt = require("jsonwebtoken");
 const UserModel = require("../Model/userModel");
 const WorkspaceModel = require("../Model/workspaceModel");
 const APIModel = require("../Model/apiModel");
+const BusinessModel = require("../Model/businessModel");
 
 const { SendAuthCodeMail, SendForgetPasswordMail } = require("../Utils/userUtils");
 
@@ -35,6 +36,13 @@ exports.Signup = catchAsyncError(async (req, res, next) => {
         WorkspaceName: `${User.FirstName}'s Workspace`
     });
 
+    const Business = await BusinessModel.create({
+        WorkspaceId: Workspace.id,
+        BusinessName: `${User.FirstName}'s Business`,
+        WebsiteData: [],
+        DocumentData: []
+    });
+
     const API = await APIModel.create({
         WorkspaceId: Workspace.id
     });
@@ -47,7 +55,8 @@ exports.Signup = catchAsyncError(async (req, res, next) => {
         message: "User created successfully",
         User,
         Workspace,
-        API
+        API,
+        Business
     });
 });
 

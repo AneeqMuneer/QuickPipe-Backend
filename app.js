@@ -51,6 +51,9 @@ const helpRoutes = require("./Routes/helpRoutes");
 const taskRoutes = require('./Routes/taskRoutes');
 const emailAccountRoutes = require("./Routes/emailAccountRoutes");
 const coldCallRoutes = require("./Routes/coldCallRoutes");
+const businessRoutes = require("./Routes/businessRoutes");
+const callRoutes = require('./Routes/callRoutes');
+const meetingRoutes = require('./Routes/meetingRoutes');
 
 app.use("/user", UserRoutes);
 app.use("/workspace", WorkspaceRoutes)
@@ -64,6 +67,9 @@ app.use("/help", helpRoutes);
 app.use('/tasks', taskRoutes);
 app.use('/EmailAccount', emailAccountRoutes);
 app.use('/coldCall', coldCallRoutes);
+app.use("/business", businessRoutes);
+app.use('/callS', callRoutes);
+app.use('/meetingS', meetingRoutes);
 
 // Render payment page
 app.get('/payment', (req, res) => {

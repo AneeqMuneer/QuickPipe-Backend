@@ -26,14 +26,6 @@ const Domain = sequelize.define('Domain', {
         type: DataTypes.FLOAT,
         allowNull: false,
     },
-    RenewalPrice: {
-        type: DataTypes.FLOAT,
-        allowNull: false,
-    },
-    TransferPrice: {
-        type: DataTypes.FLOAT,
-        allowNull: false,
-    },
     EapFee: {
         type: DataTypes.FLOAT,
         allowNull: true,
@@ -59,6 +51,30 @@ const Domain = sequelize.define('Domain', {
         defaultValue: () => {
             const now = new Date();
             now.setFullYear(now.getFullYear() + 1);
+            return now;
+        },
+    },
+    Purpose: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        validate: {
+            isIn: {
+                args: [['Email Hosting', 'Domain Forwarding']],
+                msg: "Invalid domain purpose"
+            }
+        },
+    },
+    Verified: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
+    UpdatePurposeDateTime: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: () => {
+            const now = new Date();
+            now.setDate(now.getDate() + 3);
             return now;
         },
     },

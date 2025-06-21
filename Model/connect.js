@@ -3,6 +3,7 @@ const { dbConnect } = require('../Data/db.js');
 // import model files here
 const UserModel = require('../Model/userModel');
 const WorkspaceModel = require('../Model/workspaceModel');
+const BusinessModel = require("../Model/businessModel");
 const MemberModel = require("../Model/memberModel.js");
 const CampaignModel = require("../Model/campaignModel.js");
 const LeadModel = require("../Model/leadModel.js");
@@ -12,7 +13,6 @@ const EmailAccountModel = require("../Model/emailAccountModel.js");
 const CallModel = require("../Model/callModel.js");
 const MeetingModel = require("../Model/meetingModel.js");
 const OrderModel = require("../Model/orderModel.js");
-
 
 
 // create relationships between models here
@@ -25,6 +25,9 @@ WorkspaceModel.hasMany(MemberModel, { foreignKey: 'WorkspaceId', onDelete: 'CASC
 MemberModel.belongsTo(WorkspaceModel, { foreignKey: 'WorkspaceId', targetKey: "id" });
 UserModel.hasMany(MemberModel, { foreignKey: 'UserId', onDelete: 'CASCADE', sourceKey: "id" });
 MemberModel.belongsTo(UserModel, { foreignKey: 'UserId', targetKey: "id" });
+
+WorkspaceModel.hasOne(BusinessModel, { foreignKey: 'WorkspaceId', sourceKey: "id", onDelete: 'CASCADE' });
+BusinessModel.belongsTo(WorkspaceModel, { foreignKey: 'WorkspaceId', targetKey: "id" });
 
 CampaignModel.hasOne(WorkspaceModel, { foreignKey: 'id', sourceKey: "WorkspaceId", onDelete: 'CASCADE' });
 WorkspaceModel.belongsTo(CampaignModel, { foreignKey: 'id', targetKey: "WorkspaceId" });
