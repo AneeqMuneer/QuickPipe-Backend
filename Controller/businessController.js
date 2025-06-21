@@ -142,8 +142,7 @@ exports.AddWebsiteData = catchAsyncError(async (req, res, next) => {
 
     res.status(200).json({
         success: true,
-        message: "Website data added successfully",
-        WebsiteData
+        message: "Website data added successfully"
     });
 });
 
@@ -198,7 +197,6 @@ exports.AddDocumentData = catchAsyncError(async (req, res, next) => {
     res.status(200).json({
         success: true,
         message: "Document data added successfully",
-        DocumentData,
         UnsavedFiles
     });
 });
