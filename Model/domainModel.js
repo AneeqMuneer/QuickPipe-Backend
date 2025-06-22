@@ -62,6 +62,24 @@ const Domain = sequelize.define('Domain', {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
     },
+    WebForwardingConfiguration: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+    },
+    WebForwardingUrl: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        validate: {
+            isUrl: {
+                msg: "Invalid URL"
+            },
+            validateUrlIfForwarding(value) {
+                if (this.WebForwardingConfiguration && !value) {
+                    throw new Error('URL is required when web forwarding is enabled');
+                }
+            }
+        }
+    }
 }, {
     tableName: 'Domains',
     timestamps: true,
