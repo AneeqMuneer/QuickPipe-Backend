@@ -1,12 +1,12 @@
 Email Accounts -- ? day
 -----------------------------------------------------
 1. Stripe payment integration ✅
-2. DNS record configuration
-3. Creating new email accounts
+2. DNS record configuration ✅
+3. Creating new email accounts ✅
 4. Redis connect with redis cloud
 5. Save order details ✅
 6. Save purchased domains ✅
-7. Save email addresses
+7. Save email addresses ✅
 8. Decide which api would need to verify the user and the workspace ✅
 
 
@@ -56,18 +56,18 @@ Dashboard -- 1 day
 
 Settings -- 1 day
 -----------------------------------------------------
-1. Get the organization's information from documents
-2. Get the organization's information from their website
-3. Help the model use that information
+1. Get the organization's information from documents ✅
+2. Get the organization's information from their website ✅
+3. Help the model use that information ✅
 
 
 
 AI Assistant Voice -- 1 day
 -----------------------------------------------------
-1. Research voice changer
-2. Purchase it's API
-3. Allow user to submit a sample
-4. Use the sample to recreate the voice
+1. Research voice changer ✅
+2. Purchase it's API ✅
+3. Allow user to submit a sample ✅
+4. Use the sample to recreate the voice ✅
 5. Integrate with chatbot
 
 
@@ -84,7 +84,7 @@ Call Options -- 1 day
 
 AI Lead Scout
 -----------------------------------------------------
-1. Merge Abdul Ahad Work
+1. Merge Abdul Ahad Work ✅
 
 
 

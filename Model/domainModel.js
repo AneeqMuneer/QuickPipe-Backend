@@ -54,29 +54,13 @@ const Domain = sequelize.define('Domain', {
             return now;
         },
     },
-    Purpose: {
-        type: DataTypes.STRING,
-        allowNull: true,
-        validate: {
-            isIn: {
-                args: [['Email Hosting', 'Domain Forwarding']],
-                msg: "Invalid domain purpose"
-            }
-        },
-    },
-    Verified: {
+    MailHostingConfiguration: {
         type: DataTypes.BOOLEAN,
-        allowNull: false,
         defaultValue: false,
     },
-    UpdatePurposeDateTime: {
-        type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: () => {
-            const now = new Date();
-            now.setDate(now.getDate() + 3);
-            return now;
-        },
+    Verification: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
     },
 }, {
     tableName: 'Domains',

@@ -10,9 +10,9 @@ const { Op } = require('sequelize');
 const EmailAccountModel = require("../Model/emailAccountModel");
 const OrderModel = require("../Model/orderModel");
 const DomainModel = require("../Model/domainModel");
+const WorkspaceModel = require("../Model/workspaceModel");
 
 const { GmailOauth2Client, GmailScopes, MicrosoftEmailAccountDetails, GenerateRandomPassword, SendZohoAccountCreationEmail } = require("../Utils/emailAccountsUtils");
-const { AuthCallsIpAccessControlListMappingListInstance } = require("twilio/lib/rest/api/v2010/account/sip/domain/authTypes/authTypeCalls/authCallsIpAccessControlListMapping");
 const { ClientId, ClientSecret, RedirectUri, OutlookScopes } = MicrosoftEmailAccountDetails;
 
 /* Home Page */
@@ -79,7 +79,7 @@ exports.GetDomainSuggestions = catchAsyncError(async (req, res, next) => {
 
 exports.GetDomainPrices = catchAsyncError(async (req, res, next) => {
     const { Domains } = req.body;
-
+    
     const results = { Available: { PremiumDomains: [], NonPremiumDomains: [] }, Unavailable: { PremiumDomains: [], NonPremiumDomains: [] }, Unregistrable: [] };
     const CheckDomains = [];
     let totalPrice = 0;
@@ -89,10 +89,16 @@ exports.GetDomainPrices = catchAsyncError(async (req, res, next) => {
     }
 
     const tlds = Domains.map(d => d.substring(d.indexOf('.') + 1));
-
+    
     const tldRegistrableUrl = `${process.env.BACKEND_URL}/EmailAccount/CheckTldRegisterable`;
-    const tldRegistrableResponse = await axios.post(tldRegistrableUrl, { Tlds: tlds });
-    const tldRegistrable = tldRegistrableResponse.data.registrable;
+
+    let tldRegistrable;
+    try {
+        const tldRegistrableResponse = await axios.post(tldRegistrableUrl, { Tlds: tlds });
+        tldRegistrable = tldRegistrableResponse.data.Tlds;
+    } catch (error) {
+        return next(new ErrorHandler(error.response.data.message, 400));
+    }
 
     for (let i = 0; i < Domains.length; i++) {
         if (!tldRegistrable[i]) {
@@ -112,12 +118,18 @@ exports.GetDomainPrices = catchAsyncError(async (req, res, next) => {
     const domainList = CheckDomains.map(d => d.trim().toLowerCase()).join(',');
 
     const checkUrl = `${BaseUrl}?ApiUser=${process.env.NAMECHEAP_API_USER}&ApiKey=${process.env.NAMECHEAP_API_KEY}&UserName=${process.env.NAMECHEAP_USERNAME}&ClientIp=${process.env.CLIENT_IP}&Command=namecheap.domains.check&DomainList=${domainList}`;
+    console.log("hello");
+    let checkResponseJson;
+    try {
+        const checkResponseXml = await axios.get(checkUrl);
+        checkResponseJson = await xml2js.parseStringPromise(checkResponseXml.data, { explicitArray: false, attrkey: '$' });
 
-    const checkResponseXml = await axios.get(checkUrl);
-    const checkResponseJson = await xml2js.parseStringPromise(checkResponseXml.data, { explicitArray: false, attrkey: '$' });
-
-    if (checkResponseJson.ApiResponse.$.Status === 'ERROR') {
-        return next(new ErrorHandler(checkResponseJson.ApiResponse.Errors.Error._, 400));
+        if (checkResponseJson.ApiResponse.$.Status === 'ERROR') {
+            return next(new ErrorHandler(checkResponseJson.ApiResponse.Errors.Error._, 400));
+        }
+    } catch (error) {
+        console.log(error.response.data);
+        return next(new ErrorHandler(error.response.data.data.errorCode, 400));
     }
 
     const entries = Array.isArray(checkResponseJson.ApiResponse.CommandResponse.DomainCheckResult)
@@ -275,6 +287,16 @@ exports.AddOrder = catchAsyncError(async (req, res, next) => {
             }
         } else {
             domain.Duration = 1;
+        }
+
+        const Domain = await DomainModel.findOne({
+            where: {
+                DomainName: domain.Name,
+            }
+        });
+
+        if (Domain) {
+            return next(new ErrorHandler(`Domain ${domain.Name} has already been purchased and is not available for purchase again.`, 400));
         }
     }
 
@@ -719,8 +741,34 @@ exports.ConfigureDomainEmailHosting = catchAsyncError(async (req, res, next) => 
     const { Domain } = req.body;
 
     if (!Domain) {
-        return next(new ErrorHandler("Domain not provided", 400));
+        return next(new ErrorHandler("Domain name not provided", 400));
     }
+
+    const WorkspaceDomain = await DomainModel.findOne({
+        where: {
+            DomainName: Domain
+        }
+    });
+
+    if (!WorkspaceDomain) {
+        return next(new ErrorHandler("This domain does not exist", 400));
+    }
+
+    const OrderId = WorkspaceDomain.OrderId;
+    
+    const Order = await OrderModel.findByPk(OrderId);
+    
+
+    if (!Order) {
+        return next(new ErrorHandler("This domain is not purchased by this workspace.", 400));
+    }
+
+    if (Order.WorkspaceId !== req.user?.User?.CurrentWorkspaceId) {
+        return next(new ErrorHandler("This domain is not associated with this workspace.", 400));
+    }
+
+    console.log("Domain found in workspace");
+
 
     const ConfigurationResults = { Updated: false, Message: null };
     const AccessToken = await getAccessToken();
@@ -878,6 +926,9 @@ exports.ConfigureDomainEmailHosting = catchAsyncError(async (req, res, next) => 
         ConfigurationResults.Error = err?.response?.data?.data?.errorCode || err.message;
     }
 
+    WorkspaceDomain.MailHostingConfiguration = true;
+    await WorkspaceDomain.save();
+
     res.status(200).json({
         success: ConfigurationResults.Updated,
         ConfigurationResults
@@ -888,8 +939,32 @@ exports.VerifyDomainEmailHosting = catchAsyncError(async (req, res, next) => {
     const { Domain } = req.body;
 
     if (!Domain) {
-        return next(new ErrorHandler("Domain not provided", 400));
+        return next(new ErrorHandler("Domain name not provided", 400));
     }
+
+    const WorkspaceDomain = await DomainModel.findOne({
+        where: {
+            DomainName: Domain
+        }
+    });
+
+    if (!WorkspaceDomain) {
+        return next(new ErrorHandler("This domain does not exist", 400));
+    }
+
+    const OrderId = WorkspaceDomain.OrderId;
+
+    const Order = await OrderModel.findByPk(OrderId);
+    
+    if (!Order) {
+        return next(new ErrorHandler("This domain is not purchased by this workspace.", 400));
+    }
+
+    if (Order.WorkspaceId !== req.user?.User?.CurrentWorkspaceId) {
+        return next(new ErrorHandler("This domain is not associated with this workspace.", 400));
+    }
+
+    console.log("Domain found in workspace");
 
     const BaseUrl = process.env.NAMECHEAP_SANDBOX === 'true'
         ? 'https://api.sandbox.namecheap.com/xml.response'
@@ -1273,10 +1348,46 @@ exports.VerifyDomainEmailHosting = catchAsyncError(async (req, res, next) => {
         console.log("DKIM record already verified");
     }
 
+    WorkspaceDomain.Verification = true;
+    await WorkspaceDomain.save();
+
     res.status(200).json({
         success: true,
         message: "Domain verification completed successfully",
         VerificationProgress
+    });
+});
+
+exports.GetDomainStatus = catchAsyncError(async (req, res, next) => {
+    const { DomainId } = req.body;
+
+    if (!DomainId) {
+        return next(new ErrorHandler("Domain ID not provided", 400));
+    }
+
+    const Domain = await DomainModel.findByPk(DomainId);
+
+    if (!Domain) {
+        return next(new ErrorHandler("Domain not found", 400));
+    }
+
+    const OrderId = Domain.OrderId;
+
+    const Order = await OrderModel.findByPk(OrderId);
+
+    if (!Order) {
+        return next(new ErrorHandler("This domain is not purchased by this workspace.", 400));
+    }
+
+    if (Order.WorkspaceId !== req.user?.User?.CurrentWorkspaceId) {
+        return next(new ErrorHandler("This domain is not associated with this workspace.", 400));
+    }
+
+    res.status(200).json({
+        success: true,
+        message: "Domain status retrieved successfully",
+        MailHostingConfiguration: Domain.MailHostingConfiguration,
+        Verification: Domain.Verification
     });
 });
 
