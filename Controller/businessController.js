@@ -51,9 +51,8 @@ exports.UpdateBusinessName = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler("Business not found", 404));
     }
 
-    await Business.update({
-        BusinessName: BusinessName
-    });
+    Business.BusinessName = BusinessName;
+    await Business.save();
 
     res.status(200).json({
         success: true,
@@ -135,10 +134,7 @@ exports.AddWebsiteData = catchAsyncError(async (req, res, next) => {
     }
 
     Business.WebsiteData = WebsiteData;
-
-    await Business.update({
-        WebsiteData: WebsiteData
-    });
+    await Business.save();
 
     res.status(200).json({
         success: true,
@@ -190,9 +186,8 @@ exports.AddDocumentData = catchAsyncError(async (req, res, next) => {
         }
     }
 
-    await Business.update({
-        DocumentData: DocumentData
-    });
+    Business.DocumentData = DocumentData;
+    await Business.save();
 
     res.status(200).json({
         success: true,

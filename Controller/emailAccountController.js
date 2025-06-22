@@ -712,7 +712,7 @@ exports.ZohoRefreshToken = catchAsyncError(async (req, res, next) => {
 });
 
 exports.ConfigureDomainForwarding = catchAsyncError(async (req, res, next) => {
-
+    const { Domain, ForwardingEmail, ForwardingType } = req.body;
 });
 
 exports.ConfigureDomainEmailHosting = catchAsyncError(async (req, res, next) => {
@@ -1278,14 +1278,6 @@ exports.VerifyDomainEmailHosting = catchAsyncError(async (req, res, next) => {
         message: "Domain verification completed successfully",
         VerificationProgress
     });
-});
-
-exports.SwitchEmail2Forwarding = catchAsyncError(async (req, res, next) => {
-
-});
-
-exports.SwitchForwarding2Email = catchAsyncError(async (req, res, next) => {
-
 });
 
 exports.GetDomainDNSDetails = catchAsyncError(async (req, res, next) => {

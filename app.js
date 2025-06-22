@@ -56,7 +56,7 @@ const callRoutes = require('./Routes/callRoutes');
 const meetingRoutes = require('./Routes/meetingRoutes');
 
 app.use("/user", UserRoutes);
-app.use("/workspace", WorkspaceRoutes)
+app.use("/workspace", WorkspaceRoutes);
 app.use("/zoom", ZoomRoutes);
 app.use("/calendar", CalendarRoutes);
 app.use("/member", MemberRoutes);
@@ -68,8 +68,8 @@ app.use('/tasks', taskRoutes);
 app.use('/EmailAccount', emailAccountRoutes);
 app.use('/coldCall', coldCallRoutes);
 app.use("/business", businessRoutes);
-app.use('/callS', callRoutes);
-app.use('/meetingS', meetingRoutes);
+app.use('/calls', callRoutes);
+app.use('/meetings', meetingRoutes);
 
 // Render payment page
 app.get('/payment', (req, res) => {

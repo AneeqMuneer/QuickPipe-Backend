@@ -1,12 +1,13 @@
 const express = require("express");
 const {
-    GetAllEmailAccounts, ReadyGmailAccount, GmailAccountCallback,
-    ReadyMicrosoftAccount, MicrosoftAccountCallback, GetDomainSuggestions,
-    GetDomainPrices, GetTlds, CreatePaymentIntent, StripeWebhook, CheckPaymentIntentStatus,
-    PurchaseDomains, CheckTldRegisterable, GetAccountDomains, ConfigureDomainEmailHosting, GetDomainDNSDetails,
-    ZohoAccountCallback, ZohoRefreshToken, AddOrder, UpdateOrderStatus, AddDomain, GetDomains,
-    CreateZohoMailbox, VerifyDomainEmailHosting, SwitchEmail2Forwarding, SwitchForwarding2Email, 
-    ConfigureDomainForwarding
+    GetAllEmailAccounts,
+    GetDomainSuggestions, GetDomainPrices, CreatePaymentIntent, StripeWebhook, CheckPaymentIntentStatus,
+    PurchaseDomains, GetAccountDomains, 
+    ConfigureDomainEmailHosting, VerifyDomainEmailHosting, ConfigureDomainForwarding, CreateZohoMailbox,
+    GetDomainDNSDetails, ZohoAccountCallback, ZohoRefreshToken, 
+    AddOrder, UpdateOrderStatus, AddDomain, GetDomains,
+    GetTlds, CheckTldRegisterable,
+    ReadyGmailAccount, GmailAccountCallback, ReadyMicrosoftAccount, MicrosoftAccountCallback,
 } = require("../Controller/emailAccountController");
 const { VerifyUser } = require("../Middleware/userAuth");
 
@@ -31,10 +32,8 @@ router.route("/GetDomains").get(VerifyUser, GetDomains);
 
 router.route("/zoho/refreshtoken").get(VerifyUser, ZohoRefreshToken);
 router.route("/ConfigureDomainForwarding").post(VerifyUser, ConfigureDomainForwarding);
-router.route("/SwitchForwarding2Email").post(VerifyUser, SwitchForwarding2Email);
 router.route("/ConfigureDomainEmailHosting").post(VerifyUser, ConfigureDomainEmailHosting);
 router.route("/VerifyDomainEmailHosting").post(VerifyUser, VerifyDomainEmailHosting);
-router.route("/SwitchEmail2Forwarding").post(VerifyUser, SwitchEmail2Forwarding);
 router.route("/CreateZohoMailbox").post(VerifyUser, CreateZohoMailbox);
 
 // APIs for testing purposes
