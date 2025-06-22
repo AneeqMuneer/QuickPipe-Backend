@@ -1612,17 +1612,18 @@ exports.CreateZohoMailbox = catchAsyncError(async (req, res, next) => {
     const MailAccounts = [];
     const FailedAccounts = [];
 
+    const AccessToken = await getAccessToken();
+
     for (const DomainName of DomainNames) {
         const Domain = Domains.find(domain => domain.DomainName === DomainName);
 
-        // if (!Domain) {
-        //     return next(new ErrorHandler("This domain is not associated with this workspace.", 400));
-        // }
+        if (!Domain) {
+            return next(new ErrorHandler("This domain is not associated with this workspace.", 400));
+        }
 
         const EmailAddress = EmailUserName.toLowerCase() + '@' + DomainName.toLowerCase();
         const Password = GenerateRandomPassword();
 
-        const AccessToken = await getAccessToken();
 
         try {
             const response = await axios.post(
@@ -1661,6 +1662,17 @@ exports.CreateZohoMailbox = catchAsyncError(async (req, res, next) => {
                 Error: error?.response?.data?.data?.moreInfo
             });
         }
+    }
+
+    for (const EmailAddress of MailAccounts) {
+        await EmailAccountModel.create({
+            WorkspaceId,
+            Email: EmailAddress,
+            Provider: "Zoho",
+            RefreshToken: process.env.ZOHO_REFRESH_TOKEN,
+            AccessToken,
+            ExpiresIn: new Date(Date.now() + 1000 * 60 * 60)
+        });
     }
 
     res.status(200).json({
