@@ -151,9 +151,7 @@ exports.AddDocumentData = catchAsyncError(async (req, res, next) => {
     }
 
     const Business = await BusinessModel.findOne({
-        where: {
-            WorkspaceId: CurrentWorkspaceId
-        }
+        where: { WorkspaceId: CurrentWorkspaceId }
     });
 
     if (!Business) {
@@ -164,25 +162,23 @@ exports.AddDocumentData = catchAsyncError(async (req, res, next) => {
     const UnsavedFiles = [];
 
     for (const file of req.files) {
-        if (file.mimetype === 'application/pdf') {
-            try {
-                const dataBuffer = fs.readFileSync(file.path);
-                const pdfText = await pdfParse(dataBuffer);
-                const cleanedText = CleanExtractedText(pdfText.text);
-                DocumentData.push({ Name: file.originalname, Data: cleanedText });
-            } catch (error) {
-                console.error(`Error extracting text from ${file.originalname}:`, error);
-                UnsavedFiles.push(file.originalname);
+        try {
+            let rawText = "";
+
+            if (file.mimetype === 'application/pdf') {
+                const pdfText = await pdfParse(file.buffer);
+                rawText = pdfText.text;
+            } else if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                const docxText = await mammoth.extractRawText({ buffer: file.buffer });
+                rawText = docxText.value;
             }
-        } else if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-            try {
-                const docxText = await mammoth.extractRawText({ path: file.path });
-                const cleanedText = CleanExtractedText(docxText.value);
-                DocumentData.push({ Name: file.originalname, Data: cleanedText });
-            } catch (error) {
-                console.error(`Error extracting text from ${file.originalname}:`, error);
-                UnsavedFiles.push(file.originalname);
-            }
+
+            const cleanedText = CleanExtractedText(rawText);
+            DocumentData.push({ Name: file.originalname, Data: cleanedText });
+
+        } catch (error) {
+            console.error(`Error extracting text from ${file.originalname}:`, error);
+            UnsavedFiles.push(file.originalname);
         }
     }
 
