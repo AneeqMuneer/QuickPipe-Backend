@@ -1631,6 +1631,34 @@ exports.CreateZohoMailbox = catchAsyncError(async (req, res, next) => {
     }
 });
 
+exports.GetMailHostingDomains = catchAsyncError(async (req, res, next) => {
+    const WorkspaceId = req.user.User.CurrentWorkspaceId;
+    
+    const Orders = await OrderModel.findAll({
+        where: {
+            WorkspaceId: WorkspaceId,
+            DomainPurchaseStatus: "Succeeded",
+            StripePaymentStatus: "Succeeded"
+        }
+    });
+
+    const Domains = await DomainModel.findAll({
+        where: {
+            OrderId: {
+                [Op.in]: Orders.map(order => order.id)
+            },
+            MailHostingConfiguration: true,
+            Verification: true
+        }
+    });
+
+    res.status(200).json({
+        success: true,
+        message: "Mail hosting domains retrieved successfully",
+        Domains: Domains.map(domain => domain.DomainName) || []
+    });
+});
+
 /* PART 2: Hassle-free Email Setup | Gmail/Google Suite */
 
 exports.ReadyGmailAccount = catchAsyncError(async (req, res, next) => {

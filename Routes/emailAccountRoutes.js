@@ -3,7 +3,7 @@ const {
     GetAllEmailAccounts,
     GetDomainSuggestions, GetDomainPrices, CreatePaymentIntent, StripeWebhook, CheckPaymentIntentStatus,
     PurchaseDomains, GetAccountDomains, 
-    ConfigureEmailHosting, VerifyEmailHosting, GetDomainStatus, ConfigureWebForwarding, CreateZohoMailbox,
+    ConfigureEmailHosting, VerifyEmailHosting, GetDomainStatus, ConfigureWebForwarding, CreateZohoMailbox, GetMailHostingDomains,
     GetDomainDNSDetails, ZohoAccountCallback, ZohoRefreshToken, 
     AddOrder, UpdateOrderStatus, AddDomain, GetDomains,
     GetTlds, CheckTldRegisterable,
@@ -33,9 +33,10 @@ router.route("/GetDomains").get(VerifyUser, GetDomains);
 router.route("/zoho/refreshtoken").get(VerifyUser, ZohoRefreshToken);
 router.route("/ConfigureWebForwarding").post(VerifyUser, ConfigureWebForwarding);
 router.route("/ConfigureEmailHosting").post(VerifyUser, ConfigureEmailHosting);
-router.route("/GetDomainStatus").post(VerifyUser, GetDomainStatus);
+router.route("/GetDomainStatus").get(VerifyUser, GetDomainStatus);
 router.route("/VerifyEmailHosting").post(VerifyUser, VerifyEmailHosting);
 router.route("/CreateZohoMailbox").post(VerifyUser, CreateZohoMailbox);
+router.route("/GetMailHostingDomains").get(VerifyUser, GetMailHostingDomains);
 
 // APIs for testing purposes
 router.route("/GetTlds").get(GetTlds);
