@@ -10,7 +10,6 @@ const { Op } = require('sequelize');
 const EmailAccountModel = require("../Model/emailAccountModel");
 const OrderModel = require("../Model/orderModel");
 const DomainModel = require("../Model/domainModel");
-const WorkspaceModel = require("../Model/workspaceModel");
 
 const { GmailOauth2Client, GmailScopes, MicrosoftEmailAccountDetails, GenerateRandomPassword, SendZohoAccountCreationEmail } = require("../Utils/emailAccountsUtils");
 const { ClientId, ClientSecret, RedirectUri, OutlookScopes } = MicrosoftEmailAccountDetails;
@@ -670,7 +669,7 @@ exports.GetDomains = catchAsyncError(async (req, res, next) => {
 });
 
 // Zoho URL to get auth code for a zoho account for the firs time 
-// https://accounts.zoho.com/oauth/v2/auth?response_type=code&client_id=1000.E5TVABP1XJHT9VSKR2RWYKFKL7OTXO&scope=AaaServer.profile.Read,ZohoMail.organization.domains.ALL&redirect_uri=http://localhost:4000/EmailAccount/zoho/callback&access_type=offline&prompt=consent
+// https://accounts.zoho.com/oauth/v2/auth?response_type=code&client_id=1000.E5TVABP1XJHT9VSKR2RWYKFKL7OTXO&scope=AaaServer.profile.Read,ZohoMail.organization.domains.ALL,ZohoMail.organization.accounts.ALL&redirect_uri=http://localhost:4000/EmailAccount/zoho/callback&access_type=offline&prompt=consent
 
 exports.ZohoAccountCallback = catchAsyncError(async (req, res, next) => {
     const { code } = req.body;
@@ -1584,51 +1583,92 @@ exports.GetDomainDNSDetails = catchAsyncError(async (req, res, next) => {
 });
 
 exports.CreateZohoMailbox = catchAsyncError(async (req, res, next) => {
-    const { UserName, EmailUserName, DomainName, AlertEmailAddress } = req.body;
+    const { UserName, EmailUserName, DomainNames, AlertEmailAddress } = req.body;
 
-    const EmailAddress = EmailUserName.toLowerCase() + '@' + DomainName.toLowerCase();
-    const Password = GenerateRandomPassword();
-
-    const AccessToken = await getAccessToken();
-
-    try {
-        const response = await axios.post(
-            `https://mail.zoho.com/api/organization/${process.env.ZOHO_ORG_ID}/accounts`,
-            {
-                primaryEmailAddress: EmailAddress,
-                password: Password,
-                firstName: UserName.split(" ")[0] || UserName,
-                lastName: UserName.split(" ")[1] || "",
-                displayName: UserName,
-                userExpiry: 100,
-                role: "member", // member, admin, superadmin
-                country: "us",
-                language: "en",
-                timeZone: "America/New_York",
-                oneTimePassword: true,
-            },
-            {
-                headers: {
-                    Authorization: `Zoho-oauthtoken ${AccessToken}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-            }
-        );
-
-        console.log("Zoho Account Response:", response.data);
-
-        await SendZohoAccountCreationEmail(AlertEmailAddress, EmailAddress, Password);
-
-        res.status(200).json({
-            success: true,
-            message: "Zoho mail account created successfully",
-            EmailAddress,
-        });
-    } catch (error) {
-        console.error('Error creating Zoho mail account:', error?.response?.data || error.message);
-        return next(new ErrorHandler("Failed to create Zoho mail account", 500));
+    if (!UserName || !EmailUserName || DomainNames.length === 0 || !AlertEmailAddress) {
+        return next(new ErrorHandler("All required fields are not provided", 400));
     }
+
+    const WorkspaceId = req.user.User.CurrentWorkspaceId;
+
+    const Orders = await OrderModel.findAll({
+        where: {
+            WorkspaceId: WorkspaceId,
+            DomainPurchaseStatus: "Succeeded",
+            StripePaymentStatus: "Succeeded"
+        }
+    });
+
+    const Domains = await DomainModel.findAll({
+        where: {
+            OrderId: {
+                [Op.in]: Orders.map(order => order.id)
+            },
+            MailHostingConfiguration: true,
+            Verification: true
+        }
+    });
+
+    const MailAccounts = [];
+    const FailedAccounts = [];
+
+    for (const DomainName of DomainNames) {
+        const Domain = Domains.find(domain => domain.DomainName === DomainName);
+
+        // if (!Domain) {
+        //     return next(new ErrorHandler("This domain is not associated with this workspace.", 400));
+        // }
+
+        const EmailAddress = EmailUserName.toLowerCase() + '@' + DomainName.toLowerCase();
+        const Password = GenerateRandomPassword();
+
+        const AccessToken = await getAccessToken();
+
+        try {
+            const response = await axios.post(
+                `https://mail.zoho.com/api/organization/${process.env.ZOHO_ORG_ID}/accounts`,
+                {
+                    primaryEmailAddress: EmailAddress,
+                    password: Password,
+                    firstName: UserName.split(" ")[0] || UserName,
+                    lastName: UserName.split(" ")[1] || "",
+                    displayName: UserName,
+                    userExpiry: 100,
+                    role: "member", // member, admin, superadmin
+                    country: "us",
+                    language: "en",
+                    timeZone: "America/New_York",
+                    oneTimePassword: true,
+                },
+                {
+                    headers: {
+                        Authorization: `Zoho-oauthtoken ${AccessToken}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                }
+            );
+
+            console.log("Zoho Account Response:", response.data);
+
+            await SendZohoAccountCreationEmail(AlertEmailAddress, EmailAddress, Password);
+
+            MailAccounts.push(EmailAddress);
+        } catch (error) {
+            console.error('Error creating Zoho mail account:', error?.response?.data || error.message);
+            FailedAccounts.push({
+                EmailAddress,
+                Error: error?.response?.data?.data?.moreInfo
+            });
+        }
+    }
+
+    res.status(200).json({
+        success: true,
+        message: "Zoho mail accounts created successfully",
+        MailAccounts,
+        FailedAccounts
+    });
 });
 
 exports.GetMailHostingDomains = catchAsyncError(async (req, res, next) => {
