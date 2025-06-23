@@ -4,7 +4,7 @@ const ErrorHandler = require("../Utils/errorHandler");
 
 require('dotenv').config();
 
-const { ExtractTitleAndLocation , EnrichLeadWithApollo } = require('../Utils/leadUtils');
+const { ExtractTitleAndLocation, EnrichLeadWithApollo, ExtractAllPossible } = require('../Utils/leadUtils');
 
 const LeadModel = require("../Model/leadModel");
 const CampaignModel = require("../Model/campaignModel");
@@ -68,12 +68,56 @@ exports.AddLeadsToCampaign = catchAsyncError(async (req, res, next) => {
 });
 
 exports.GetAllLeads = catchAsyncError(async (req, res) => {
-  const leads = await LeadModel.findAll();
+  try {
+    const CurrentWorkspaceId = req.user.User.CurrentWorkspaceId;
+    
+    if (!CurrentWorkspaceId) {
+      return res.status(400).json({
+        success: false,
+        message: "No workspace selected"
+      });
+    }
 
-  res.status(200).json({
-    success: true,
-    leads
-  });
+    // Get leads that belong to campaigns in the current workspace
+    const leads = await LeadModel.findAll({
+      include: [{
+        model: CampaignModel,
+        where: { WorkspaceId: CurrentWorkspaceId },
+        required: false // This allows leads without campaigns to be included
+      }],
+      where: {
+        // Include leads that either belong to campaigns in this workspace
+        // or don't belong to any campaign (orphaned leads)
+        '$Campaign.WorkspaceId$': CurrentWorkspaceId
+      }
+    });
+
+    // Also get leads that don't belong to any campaign (orphaned leads)
+    const orphanedLeads = await LeadModel.findAll({
+      where: {
+        CampaignId: null
+      }
+    });
+
+    // Combine and deduplicate leads
+    const allLeads = [...leads, ...orphanedLeads];
+    const uniqueLeads = allLeads.filter((lead, index, self) => 
+      index === self.findIndex(l => l.id === lead.id)
+    );
+
+    res.status(200).json({
+      success: true,
+      leads: uniqueLeads,
+      count: uniqueLeads.length
+    });
+  } catch (error) {
+    console.error('Error fetching leads:', error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch leads",
+      error: error.message
+    });
+  }
 });
 
 exports.GetLeadById = catchAsyncError(async (req, res, next) => {
@@ -92,7 +136,7 @@ exports.GetLeadById = catchAsyncError(async (req, res, next) => {
 
 exports.UpdateLead = catchAsyncError(async (req, res, next) => {
   const { leadid } = req.params;
-  const { Name, Email, Phone, Company, CampaignId, Website, Title, Location } = req.body;
+  const { Name, Email, Phone, Company, CampaignId, Website, Title, Location, Status, EmployeeCount } = req.body;
 
   const Lead = await LeadModel.findByPk(leadid);
 
@@ -100,21 +144,38 @@ exports.UpdateLead = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Lead not found", 404));
   }
 
-  await LeadModel.update({
-    Name: Name.trim() || LeadModel.Name,
-    Email: Email || LeadModel.Email,
-    Phone: Phone || LeadModel.Phone,
-    Company: Company || LeadModel.Company,
-    CampaignId: CampaignId || LeadModel.CampaignId,
-    Website: Website || LeadModel.Website,
-    Title: Title || LeadModel.Title,
-    Location: Location || LeadModel.Location,
+  // Validate status if provided
+  if (Status) {
+    const validStatuses = ['Discovery', 'Evaluation', 'Proposal', 'Negotiation', 'Commit', 'Closed'];
+    if (!validStatuses.includes(Status)) {
+      return next(new ErrorHandler("Invalid status provided", 400));
+    }
+  }
+
+  // Prepare update data
+  const updateData = {};
+  if (Name) updateData.Name = Name.trim();
+  if (Email) updateData.Email = Email;
+  if (Phone) updateData.Phone = Phone;
+  if (Company) updateData.Company = Company;
+  if (CampaignId) updateData.CampaignId = CampaignId;
+  if (Website) updateData.Website = Website;
+  if (Title) updateData.Title = Title;
+  if (Location) updateData.Location = Location;
+  if (Status) updateData.Status = Status;
+  if (EmployeeCount) updateData.EmployeeCount = EmployeeCount;
+
+  await LeadModel.update(updateData, {
+    where: { id: leadid }
   });
+
+  // Fetch the updated lead
+  const updatedLead = await LeadModel.findByPk(leadid);
 
   res.status(200).json({
     success: true,
     message: "Lead updated successfully",
-    Lead
+    Lead: updatedLead
   });
 });
 
@@ -152,7 +213,7 @@ exports.UpdateLeadStatus = catchAsyncError(async (req, res, next) => {
   const { leadid } = req.params;
   const { status } = req.body;
 
-  const lead = awaitLLeadModel.findByPk(leadid);
+  const lead = await LeadModel.findByPk(leadid);
 
   if (!lead) {
     return next(new ErrorHandler("Lead not found", 404));
@@ -170,29 +231,151 @@ exports.UpdateLeadStatus = catchAsyncError(async (req, res, next) => {
 
 exports.SearchLeads = catchAsyncError(async (req, res, next) => {
   try {
-    const { query, page = 1, per_page = 10 } = req.body;
+    const { query, page = 1, per_page = 10, person_titles, industries, employees, revenues, names, companies } = req.body;
+
+    console.log('Backend received request body:', req.body);
+    console.log('Backend received query:', query);
 
     if (!query) {
       return res.status(400).json({ error: 'No search query provided' });
     }
 
-    // Extract title and location from the query
-    const { title, location } = ExtractTitleAndLocation(query);
+    // Extract as much as possible from the query
+    const { title, location, company, keyword } = ExtractAllPossible(query);
+    
+    console.log('Backend extracted parameters:', { title, location, company, keyword });
 
-    // Prepare Apollo API parameters
+    // Prepare Apollo API parameters (only supported ones)
     const apolloParams = {
       per_page: parseInt(per_page),
       page: parseInt(page)
     };
 
-    if (title) apolloParams.person_titles = [title];
-    if (location) apolloParams.person_locations = [location];
-    // if (domain) apolloParams.organization_domains = [domain];
+    // Use filters from request body if provided, otherwise use extracted from query
+    if (person_titles && Array.isArray(person_titles) && person_titles.length > 0) {
+      apolloParams.person_titles = person_titles;
+    } else if (title) {
+      apolloParams.person_titles = [title];
+    }
 
-    if (!title && !location) {
+    // Apollo expects canonical industry values. Map common frontend values to Apollo's expected values.
+    const industryMap = {
+      'Tech': 'information technology',
+      'IT': 'information technology',
+      'Information Technology': 'information technology',
+      'Finance': 'financial services',
+      'Healthcare': 'hospital & health care',
+      'Retail': 'retail',
+      // Add more mappings as needed
+    };
+    // See: https://docs.peopledatalabs.com/docs/industries for Apollo's canonical industry values
+
+    let mappedIndustries = industries && Array.isArray(industries)
+      ? industries.map(ind => industryMap[ind] || ind)
+      : undefined;
+
+    if (mappedIndustries && mappedIndustries.length > 0) {
+      apolloParams.organization_industries = mappedIndustries;
+    }
+
+    // Map frontend employee ranges to Apollo's expected format
+    if (employees && Array.isArray(employees) && employees.length > 0) {
+      const employeeRangeMap = {
+        '1-10': '1,10',
+        '11-50': '11,50',
+        '51-200': '51,200',
+        '201-500': '201,500',
+        '501-1000': '501,1000',
+        '1000+': '1001,'
+      };
+      
+      const mappedEmployeeRanges = employees.map(emp => employeeRangeMap[emp] || emp);
+      apolloParams.organization_num_employees_ranges = mappedEmployeeRanges;
+    }
+
+    // Map frontend revenue ranges to Apollo's expected format
+    if (revenues && Array.isArray(revenues) && revenues.length > 0) {
+      const revenueRangeMap = {
+        '$0-1M': '0,1000000',
+        '$1M-10M': '1000000,10000000',
+        '$10M-50M': '10000000,50000000',
+        '$50M-250M': '50000000,250000000',
+        '$250M-1B': '250000000,1000000000',
+        '$1B+': '1000000000,'
+      };
+      
+      const mappedRevenueRanges = revenues.map(rev => revenueRangeMap[rev] || rev);
+      apolloParams.organization_annual_revenue_ranges = mappedRevenueRanges;
+    }
+
+    // Add person names filter
+    if (names && Array.isArray(names) && names.length > 0) {
+      console.log('Processing names filter:', names);
+      // Use q_keywords for name searches as Apollo API supports this
+      const nameKeywords = names.join(' ');
+      if (apolloParams.q_keywords) {
+        apolloParams.q_keywords = `${apolloParams.q_keywords} ${nameKeywords}`;
+      } else {
+        apolloParams.q_keywords = nameKeywords;
+      }
+      console.log('Updated q_keywords with names:', apolloParams.q_keywords);
+    }
+
+    // Add company names filter
+    if (companies && Array.isArray(companies) && companies.length > 0) {
+      console.log('Processing companies filter:', companies);
+      // Try using organization_names parameter for company searches
+      apolloParams.organization_names = companies;
+      console.log('Set organization_names to:', apolloParams.organization_names);
+      
+      // Also add to q_keywords as a fallback
+      const companyKeywords = companies.join(' ');
+      if (apolloParams.q_keywords) {
+        apolloParams.q_keywords = `${apolloParams.q_keywords} ${companyKeywords}`;
+      } else {
+        apolloParams.q_keywords = companyKeywords;
+      }
+      console.log('Also added to q_keywords:', apolloParams.q_keywords);
+    } else if (company) {
+      console.log('Processing extracted company:', company);
+      apolloParams.organization_names = [company];
+      console.log('Set organization_names to:', apolloParams.organization_names);
+      
+      // Also add to q_keywords as a fallback
+      if (apolloParams.q_keywords) {
+        apolloParams.q_keywords = `${apolloParams.q_keywords} ${company}`;
+      } else {
+        apolloParams.q_keywords = company;
+      }
+      console.log('Also added to q_keywords:', apolloParams.q_keywords);
+    }
+
+    if (location) apolloParams.person_locations = [location];
+    if (keyword) {
+      if (apolloParams.q_keywords) {
+        apolloParams.q_keywords = `${apolloParams.q_keywords} ${keyword}`;
+      } else {
+        apolloParams.q_keywords = keyword;
+      }
+    }
+
+    // Log Apollo API parameters for every request
+    console.log('Apollo API params:', apolloParams);
+
+    // Only error if nothing at all is found
+    const hasAnyFilter = title || location || company || keyword || 
+                        (person_titles && person_titles.length > 0) ||
+                        (industries && industries.length > 0) ||
+                        (employees && employees.length > 0) ||
+                        (revenues && revenues.length > 0) ||
+                        (names && names.length > 0) ||
+                        (companies && companies.length > 0);
+    
+    if (!hasAnyFilter) {
       return res.status(400).json({
-        error: 'Could not extract any searchable information from query',
-        query: query
+        error: 'Could not extract any searchable information from query or filters',
+        query: query,
+        filters: { person_titles, industries, employees, revenues, names, companies }
       });
     }
 
@@ -208,6 +391,11 @@ exports.SearchLeads = catchAsyncError(async (req, res, next) => {
           'X-Api-Key': process.env.APOLLO_API_KEY,
         }
       });
+
+      console.log('Apollo API response status:', apolloResponse.status);
+      console.log('Apollo API response data keys:', Object.keys(apolloResponse.data));
+      console.log('Apollo API total entries:', apolloResponse.data.pagination?.total_entries);
+      console.log('Apollo API people count:', apolloResponse.data.people?.length || 0);
 
       const leads = apolloResponse.data.people || [];
       const enrichedLeads = [];
@@ -252,20 +440,24 @@ exports.SearchLeads = catchAsyncError(async (req, res, next) => {
         extractedParameters: {
           titles: title ? [title] : [],
           locations: location ? [location] : [],
-          // domains: domain ? [domain] : []
+          companies: company ? [company] : [],
+          keywords: keyword ? [keyword] : []
         },
         pagination: paginationInfo,
         results: enrichedLeads
       });
 
     } catch (error) {
+      // Log and return Apollo API error details for easier debugging
+      console.error('Apollo API error:', error?.response?.data || error.message);
       return res.status(500).json({
         error: 'Failed to retrieve data from Apollo API',
-        details: error.message,
+        details: error?.response?.data || error.message,
         extractedParameters: {
           titles: title ? [title] : [],
           locations: location ? [location] : [],
-          // domains: domain ? [domain] : []
+          companies: company ? [company] : [],
+          keywords: keyword ? [keyword] : []
         }
       });
     }

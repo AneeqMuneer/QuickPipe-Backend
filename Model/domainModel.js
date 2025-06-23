@@ -54,30 +54,32 @@ const Domain = sequelize.define('Domain', {
             return now;
         },
     },
-    Purpose: {
+    MailHostingConfiguration: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+    },
+    Verification: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+    },
+    WebForwardingConfiguration: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+    },
+    WebForwardingUrl: {
         type: DataTypes.STRING,
         allowNull: true,
         validate: {
-            isIn: {
-                args: [['Email Hosting', 'Domain Forwarding']],
-                msg: "Invalid domain purpose"
+            isUrl: {
+                msg: "Invalid URL"
+            },
+            validateUrlIfForwarding(value) {
+                if (this.WebForwardingConfiguration && !value) {
+                    throw new Error('URL is required when web forwarding is enabled');
+                }
             }
-        },
-    },
-    Verified: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-    },
-    UpdatePurposeDateTime: {
-        type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: () => {
-            const now = new Date();
-            now.setDate(now.getDate() + 3);
-            return now;
-        },
-    },
+        }
+    }
 }, {
     tableName: 'Domains',
     timestamps: true,

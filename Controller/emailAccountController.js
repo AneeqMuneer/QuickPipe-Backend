@@ -12,7 +12,6 @@ const OrderModel = require("../Model/orderModel");
 const DomainModel = require("../Model/domainModel");
 
 const { GmailOauth2Client, GmailScopes, MicrosoftEmailAccountDetails, GenerateRandomPassword, SendZohoAccountCreationEmail } = require("../Utils/emailAccountsUtils");
-const { AuthCallsIpAccessControlListMappingListInstance } = require("twilio/lib/rest/api/v2010/account/sip/domain/authTypes/authTypeCalls/authCallsIpAccessControlListMapping");
 const { ClientId, ClientSecret, RedirectUri, OutlookScopes } = MicrosoftEmailAccountDetails;
 
 /* Home Page */
@@ -91,8 +90,14 @@ exports.GetDomainPrices = catchAsyncError(async (req, res, next) => {
     const tlds = Domains.map(d => d.substring(d.indexOf('.') + 1));
 
     const tldRegistrableUrl = `${process.env.BACKEND_URL}/EmailAccount/CheckTldRegisterable`;
-    const tldRegistrableResponse = await axios.post(tldRegistrableUrl, { Tlds: tlds });
-    const tldRegistrable = tldRegistrableResponse.data.registrable;
+
+    let tldRegistrable;
+    try {
+        const tldRegistrableResponse = await axios.post(tldRegistrableUrl, { Tlds: tlds });
+        tldRegistrable = tldRegistrableResponse.data.Tlds;
+    } catch (error) {
+        return next(new ErrorHandler(error.response.data.message, 400));
+    }
 
     for (let i = 0; i < Domains.length; i++) {
         if (!tldRegistrable[i]) {
@@ -112,12 +117,18 @@ exports.GetDomainPrices = catchAsyncError(async (req, res, next) => {
     const domainList = CheckDomains.map(d => d.trim().toLowerCase()).join(',');
 
     const checkUrl = `${BaseUrl}?ApiUser=${process.env.NAMECHEAP_API_USER}&ApiKey=${process.env.NAMECHEAP_API_KEY}&UserName=${process.env.NAMECHEAP_USERNAME}&ClientIp=${process.env.CLIENT_IP}&Command=namecheap.domains.check&DomainList=${domainList}`;
+    console.log("hello");
+    let checkResponseJson;
+    try {
+        const checkResponseXml = await axios.get(checkUrl);
+        checkResponseJson = await xml2js.parseStringPromise(checkResponseXml.data, { explicitArray: false, attrkey: '$' });
 
-    const checkResponseXml = await axios.get(checkUrl);
-    const checkResponseJson = await xml2js.parseStringPromise(checkResponseXml.data, { explicitArray: false, attrkey: '$' });
-
-    if (checkResponseJson.ApiResponse.$.Status === 'ERROR') {
-        return next(new ErrorHandler(checkResponseJson.ApiResponse.Errors.Error._, 400));
+        if (checkResponseJson.ApiResponse.$.Status === 'ERROR') {
+            return next(new ErrorHandler(checkResponseJson.ApiResponse.Errors.Error._, 400));
+        }
+    } catch (error) {
+        console.log(error.response.data);
+        return next(new ErrorHandler(error.response.data.data.errorCode, 400));
     }
 
     const entries = Array.isArray(checkResponseJson.ApiResponse.CommandResponse.DomainCheckResult)
@@ -275,6 +286,16 @@ exports.AddOrder = catchAsyncError(async (req, res, next) => {
             }
         } else {
             domain.Duration = 1;
+        }
+
+        const Domain = await DomainModel.findOne({
+            where: {
+                DomainName: domain.Name,
+            }
+        });
+
+        if (Domain) {
+            return next(new ErrorHandler(`Domain ${domain.Name} has already been purchased and is not available for purchase again.`, 400));
         }
     }
 
@@ -648,7 +669,7 @@ exports.GetDomains = catchAsyncError(async (req, res, next) => {
 });
 
 // Zoho URL to get auth code for a zoho account for the firs time 
-// https://accounts.zoho.com/oauth/v2/auth?response_type=code&client_id=1000.E5TVABP1XJHT9VSKR2RWYKFKL7OTXO&scope=AaaServer.profile.Read,ZohoMail.organization.domains.ALL&redirect_uri=http://localhost:4000/EmailAccount/zoho/callback&access_type=offline&prompt=consent
+// https://accounts.zoho.com/oauth/v2/auth?response_type=code&client_id=1000.E5TVABP1XJHT9VSKR2RWYKFKL7OTXO&scope=AaaServer.profile.Read,ZohoMail.organization.domains.ALL,ZohoMail.organization.accounts.ALL&redirect_uri=http://localhost:4000/EmailAccount/zoho/callback&access_type=offline&prompt=consent
 
 exports.ZohoAccountCallback = catchAsyncError(async (req, res, next) => {
     const { code } = req.body;
@@ -711,16 +732,192 @@ exports.ZohoRefreshToken = catchAsyncError(async (req, res, next) => {
     });
 });
 
-exports.ConfigureDomainForwarding = catchAsyncError(async (req, res, next) => {
+exports.ConfigureWebForwarding = catchAsyncError(async (req, res, next) => {
+    const { Domain, ForwardingUrl } = req.body;
 
+    if (!Domain || !ForwardingUrl) {
+        return next(new ErrorHandler("All required fields are not provided", 400));
+    }
+
+    const WorkspaceDomain = await DomainModel.findOne({
+        where: {
+            DomainName: Domain
+        }
+    });
+
+    if (!WorkspaceDomain) {
+        return next(new ErrorHandler("This domain does not exist", 400));
+    }
+
+    const OrderId = WorkspaceDomain.OrderId;
+
+    const Order = await OrderModel.findByPk(OrderId);
+
+    if (!Order) {
+        return next(new ErrorHandler("This domain is not purchased by this workspace.", 400));
+    }
+
+    if (Order.WorkspaceId !== req.user?.User?.CurrentWorkspaceId) {
+        return next(new ErrorHandler("This domain is not associated with this workspace.", 400));
+    }
+
+    console.log("Domain found in workspace");
+
+    const BaseUrl = process.env.NAMECHEAP_SANDBOX === 'true'
+        ? 'https://api.sandbox.namecheap.com/xml.response'
+        : 'https://api.namecheap.com/xml.response';
+
+    const sld = Domain.split('.')[0];
+    const tld = Domain.substring(Domain.indexOf('.') + 1);
+
+    try {
+        // Step 1: Set default nameservers
+        const NameserverUrl = `${BaseUrl}?ApiUser=${process.env.NAMECHEAP_API_USER}&ApiKey=${process.env.NAMECHEAP_API_KEY}&UserName=${process.env.NAMECHEAP_USERNAME}&Command=namecheap.domains.dns.setDefault&ClientIp=${process.env.CLIENT_IP}&SLD=${sld}&TLD=${tld}`;
+
+        const NameserverResponseXml = await axios.post(NameserverUrl);
+        const NameserverResponseJson = await xml2js.parseStringPromise(NameserverResponseXml.data, { explicitArray: false, attrkey: '$' });
+
+        if (NameserverResponseJson.ApiResponse.$.Status === 'ERROR') {
+            return next(new ErrorHandler(NameserverResponseJson.ApiResponse.Errors.Error._, 400));
+        }
+
+        console.log("Default nameservers set");
+
+
+
+        // Step 2: Retrieving current DNS records
+        const GetHostUrl = `${BaseUrl}?ApiUser=${process.env.NAMECHEAP_API_USER}&ApiKey=${process.env.NAMECHEAP_API_KEY}&UserName=${process.env.NAMECHEAP_USERNAME}&ClientIp=${process.env.CLIENT_IP}&Command=namecheap.domains.dns.getHosts`
+            + `&SLD=${sld}`
+            + `&TLD=${tld}`;
+
+        const GetHostResponseXml = await axios.post(GetHostUrl);
+        const GetHostResponseJson = await xml2js.parseStringPromise(GetHostResponseXml.data, { explicitArray: false, attrkey: '$' });
+
+        if (GetHostResponseJson.ApiResponse.$.Status === 'ERROR') {
+            return next(new ErrorHandler(GetHostResponseJson.ApiResponse.Errors.Error._, 400));
+        }
+
+        const CurrentDnsRecords = GetHostResponseJson.ApiResponse.CommandResponse.DomainDNSGetHostsResult.host;
+
+        console.log("Current DNS records retrieved");
+
+
+        // Step 3: Preserve current necessary DNS records
+        let SetHostUrl = `${BaseUrl}?ApiUser=${process.env.NAMECHEAP_API_USER}&ApiKey=${process.env.NAMECHEAP_API_KEY}&UserName=${process.env.NAMECHEAP_USERNAME}&ClientIp=${process.env.CLIENT_IP}&Command=namecheap.domains.dns.setHosts`
+            + `&SLD=${sld}`
+            + `&TLD=${tld}`;
+
+        let allRecords = [];
+        let counter = 1;
+
+        const addRecord = (name, type, address, ttl = '3600', mxPref = '') => {
+            const encodedAddress = encodeURIComponent(address);
+            const base = `&HostName${counter}=${name}&RecordType${counter}=${type}&Address${counter}=${encodedAddress}&TTL${counter}=${ttl}`;
+            const full = mxPref ? `${base}&MXPref${counter}=${mxPref}` : base;
+            allRecords.push(full);
+            counter++;
+        };
+
+        if (!Array.isArray(CurrentDnsRecords)) {
+            CurrentDnsRecords = [CurrentDnsRecords];
+        }
+
+        for (const record of CurrentDnsRecords) {
+            const r = record.$;
+            const { Name, Type, Address } = r;
+
+            const safeToPreserve =
+                (Type === 'MX') ||
+                (Type === 'TXT' && (
+                    Name.includes('_dmarc') ||
+                    Name.includes('_acme-challenge') ||
+                    Name.includes('whoisguard') ||
+                    Address.includes('v=spf1') ||
+                    Address.includes('v=DKIM1') ||
+                    Address.includes('zoho-verification')
+                )) ||
+                (Type === 'CNAME' && Name !== 'www') ||
+                (Type === 'A' && Name !== '@' && Name !== 'www');
+
+            if (safeToPreserve) {
+                addRecord(Name, Type, Address, r.TTL, r.MXPref);
+            }
+        }
+
+
+        if (allRecords.length > 0) {
+            SetHostUrl += allRecords.join('');
+        }
+
+        console.log("Necessary DNS records preserved.");
+
+        // Step 4: Add the web forwarding URL records to the DNS records for both www and @
+        SetHostUrl += `&HostName${counter}=@&RecordType${counter}=URL&Address${counter}=${ForwardingUrl}&TTL${counter}=1800`;
+        counter++;
+        SetHostUrl += `&HostName${counter}=www&RecordType${counter}=URL&Address${counter}=${ForwardingUrl}&TTL${counter}=1800`;
+        counter++;
+
+        console.log("Web forwarding URL records added.");
+
+        // Step 5: Set the DNS records
+        const SetHostResponseXml = await axios.post(SetHostUrl);
+        const SetHostResponseJson = await xml2js.parseStringPromise(SetHostResponseXml.data, { explicitArray: false, attrkey: '$' });
+
+        if (SetHostResponseJson.ApiResponse.$.Status === 'ERROR') {
+            return next(new ErrorHandler(SetHostResponseJson.ApiResponse.Errors.Error._, 400));
+        }
+
+        console.log("DNS records set successfully.");
+    } catch (err) {
+        console.error('Error in DNS update flow:', err?.response?.data || err.message);
+        return next(new ErrorHandler(err?.response?.data?.data?.errorCode || err.message, 400));
+    }
+
+
+    WorkspaceDomain.WebForwardingConfiguration = true;
+    WorkspaceDomain.WebForwardingUrl = ForwardingUrl;
+    await WorkspaceDomain.save();
+
+    res.status(200).json({
+        success: true,
+        message: "Web forwarding configured successfully",
+        WebForwardingConfiguration: WorkspaceDomain.WebForwardingConfiguration,
+        WebForwardingUrl: WorkspaceDomain.WebForwardingUrl
+    });
 });
 
-exports.ConfigureDomainEmailHosting = catchAsyncError(async (req, res, next) => {
+exports.ConfigureEmailHosting = catchAsyncError(async (req, res, next) => {
     const { Domain } = req.body;
 
     if (!Domain) {
-        return next(new ErrorHandler("Domain not provided", 400));
+        return next(new ErrorHandler("Domain name not provided", 400));
     }
+
+    const WorkspaceDomain = await DomainModel.findOne({
+        where: {
+            DomainName: Domain
+        }
+    });
+
+    if (!WorkspaceDomain) {
+        return next(new ErrorHandler("This domain does not exist", 400));
+    }
+
+    const OrderId = WorkspaceDomain.OrderId;
+
+    const Order = await OrderModel.findByPk(OrderId);
+
+
+    if (!Order) {
+        return next(new ErrorHandler("This domain is not purchased by this workspace.", 400));
+    }
+
+    if (Order.WorkspaceId !== req.user?.User?.CurrentWorkspaceId) {
+        return next(new ErrorHandler("This domain is not associated with this workspace.", 400));
+    }
+
+    console.log("Domain found in workspace");
+
 
     const ConfigurationResults = { Updated: false, Message: null };
     const AccessToken = await getAccessToken();
@@ -797,6 +994,7 @@ exports.ConfigureDomainEmailHosting = catchAsyncError(async (req, res, next) => 
                 (Type === 'TXT' && Name.includes('_dmarc')) ||
                 (Type === 'TXT' && Name.includes('_acme-challenge')) ||
                 (Type === 'URL' && Name === '@') ||
+                (Type === 'URL' && Name === 'www') ||
                 (Type === 'TXT' && !Address.includes('zoho-verification') && !Address.includes('v=spf1') && !Address.includes('v=DKIM1')) ||
                 (Type === 'TXT' && Name.includes('whoisguard'));
 
@@ -878,18 +1076,45 @@ exports.ConfigureDomainEmailHosting = catchAsyncError(async (req, res, next) => 
         ConfigurationResults.Error = err?.response?.data?.data?.errorCode || err.message;
     }
 
+    WorkspaceDomain.MailHostingConfiguration = true;
+    await WorkspaceDomain.save();
+
     res.status(200).json({
         success: ConfigurationResults.Updated,
         ConfigurationResults
     });
 });
 
-exports.VerifyDomainEmailHosting = catchAsyncError(async (req, res, next) => {
+exports.VerifyEmailHosting = catchAsyncError(async (req, res, next) => {
     const { Domain } = req.body;
 
     if (!Domain) {
-        return next(new ErrorHandler("Domain not provided", 400));
+        return next(new ErrorHandler("Domain name not provided", 400));
     }
+
+    const WorkspaceDomain = await DomainModel.findOne({
+        where: {
+            DomainName: Domain
+        }
+    });
+
+    if (!WorkspaceDomain) {
+        return next(new ErrorHandler("This domain does not exist", 400));
+    }
+
+    const OrderId = WorkspaceDomain.OrderId;
+
+    const Order = await OrderModel.findByPk(OrderId);
+
+    if (!Order) {
+        return next(new ErrorHandler("This domain is not purchased by this workspace.", 400));
+    }
+
+    if (Order.WorkspaceId !== req.user?.User?.CurrentWorkspaceId) {
+        return next(new ErrorHandler("This domain is not associated with this workspace.", 400));
+    }
+
+    console.log("Domain found in workspace");
 
     const BaseUrl = process.env.NAMECHEAP_SANDBOX === 'true'
         ? 'https://api.sandbox.namecheap.com/xml.response'
@@ -1114,32 +1339,28 @@ exports.VerifyDomainEmailHosting = catchAsyncError(async (req, res, next) => {
 
     // Get all previous host
     const GetHostUrl = `${BaseUrl}?ApiUser=${process.env.NAMECHEAP_API_USER}&ApiKey=${process.env.NAMECHEAP_API_KEY}&UserName=${process.env.NAMECHEAP_USERNAME}&ClientIp=${process.env.CLIENT_IP}&Command=namecheap.domains.dns.getHosts`
-    // + `&SLD=${sld}`
-    // + `&TLD=${tld}`;
-    + `&SLD=quickpipes`
-    + `&TLD=co`;
-    
+        + `&SLD=${sld}`
+        + `&TLD=${tld}`;
+
     const GetHostResponseXml = await axios.post(GetHostUrl);
     const GetHostResponseJson = await xml2js.parseStringPromise(GetHostResponseXml.data, { explicitArray: false, attrkey: '$' });
-    
+
     if (GetHostResponseJson.ApiResponse.$.Status === 'ERROR') {
         return next(new ErrorHandler(GetHostResponseJson.ApiResponse.Errors.Error._, 400));
     }
-    
+
     const CurrentDnsRecords = GetHostResponseJson.ApiResponse.CommandResponse.DomainDNSGetHostsResult.host;
-    
+
     console.log("Current DNS records retrieved");
-    
+
     // Re-Add all previous host
     let SetHostUrl = `${BaseUrl}?ApiUser=${process.env.NAMECHEAP_API_USER}&ApiKey=${process.env.NAMECHEAP_API_KEY}&UserName=${process.env.NAMECHEAP_USERNAME}&ClientIp=${process.env.CLIENT_IP}&Command=namecheap.domains.dns.setHosts`
-    // + `&SLD=${sld}`
-    // + `&TLD=${tld}`;
-    + `&SLD=quickpipes`
-    + `&TLD=co`;
-    
+        + `&SLD=${sld}`
+        + `&TLD=${tld}`;
+
     let allRecords = [];
     let counter = 1;
-    
+
     const addRecord = (name, type, address, ttl = '3600', mxPref = '') => {
         const encodedAddress = encodeURIComponent(address);
         const base = `&HostName${counter}=${name}&RecordType${counter}=${type}&Address${counter}=${encodedAddress}&TTL${counter}=${ttl}`;
@@ -1147,33 +1368,33 @@ exports.VerifyDomainEmailHosting = catchAsyncError(async (req, res, next) => {
         allRecords.push(full);
         counter++;
     };
-    
+
     if (!Array.isArray(CurrentDnsRecords)) {
         CurrentDnsRecords = [CurrentDnsRecords];
     }
-    
+
     for (const record of CurrentDnsRecords) {
         const r = record.$;
         const { Name, Type, Address } = r;
-        
+
         // Skip DKIM records
         if (Name.includes('_domainkey')) {
             AddDkimDomain = false;
         }
-        
+
         addRecord(Name, Type, Address, r.TTL, r.MXPref);
     }
-    
+
     if (allRecords.length > 0) {
         SetHostUrl += allRecords.join('');
     }
-    
+
     console.log("Previous DNS records preserved");
 
     console.log("AddDkimZoho:", AddDkimZoho);
     console.log("VerifyDkim:", VerifyDkim);
     console.log("AddDkimDomain:", AddDkimDomain);
-    
+
     // Add DKIM to zoho domain
     let AddDKIMZohoReponse = null;
     if (AddDkimZoho) {
@@ -1215,7 +1436,7 @@ exports.VerifyDomainEmailHosting = catchAsyncError(async (req, res, next) => {
     // Add DKIM to domain
     if (AddDkimDomain) {
         const DkimDetails = AddDKIMZohoReponse === null ? DkimRecord : AddDKIMZohoReponse.data.data;
-        
+
         const encodedDkimValue = encodeURIComponent(DkimDetails.publicKey.trim());
         SetHostUrl += `&HostName${counter}=${DkimDetails.selector}._domainkey&RecordType${counter}=TXT&Address${counter}=${DkimDetails.publicKey}&TTL${counter}=3600`;
         counter++;
@@ -1273,6 +1494,9 @@ exports.VerifyDomainEmailHosting = catchAsyncError(async (req, res, next) => {
         console.log("DKIM record already verified");
     }
 
+    WorkspaceDomain.Verification = true;
+    await WorkspaceDomain.save();
+
     res.status(200).json({
         success: true,
         message: "Domain verification completed successfully",
@@ -1280,12 +1504,39 @@ exports.VerifyDomainEmailHosting = catchAsyncError(async (req, res, next) => {
     });
 });
 
-exports.SwitchEmail2Forwarding = catchAsyncError(async (req, res, next) => {
+exports.GetDomainStatus = catchAsyncError(async (req, res, next) => {
+    const { DomainId } = req.body;
 
-});
+    if (!DomainId) {
+        return next(new ErrorHandler("Domain ID not provided", 400));
+    }
 
-exports.SwitchForwarding2Email = catchAsyncError(async (req, res, next) => {
+    const Domain = await DomainModel.findByPk(DomainId);
 
+    if (!Domain) {
+        return next(new ErrorHandler("Domain not found", 400));
+    }
+
+    const OrderId = Domain.OrderId;
+
+    const Order = await OrderModel.findByPk(OrderId);
+
+    if (!Order) {
+        return next(new ErrorHandler("This domain is not purchased by this workspace.", 400));
+    }
+
+    if (Order.WorkspaceId !== req.user?.User?.CurrentWorkspaceId) {
+        return next(new ErrorHandler("This domain is not associated with this workspace.", 400));
+    }
+
+    res.status(200).json({
+        success: true,
+        message: "Domain status retrieved successfully",
+        MailHostingConfiguration: Domain.MailHostingConfiguration,
+        Verification: Domain.Verification,
+        WebForwardingConfiguration: Domain.WebForwardingConfiguration,
+        WebForwardingUrl: Domain.WebForwardingUrl
+    });
 });
 
 exports.GetDomainDNSDetails = catchAsyncError(async (req, res, next) => {
@@ -1332,51 +1583,132 @@ exports.GetDomainDNSDetails = catchAsyncError(async (req, res, next) => {
 });
 
 exports.CreateZohoMailbox = catchAsyncError(async (req, res, next) => {
-    const { UserName, EmailUserName, DomainName, AlertEmailAddress } = req.body;
+    const { UserName, EmailUserName, DomainNames, AlertEmailAddress } = req.body;
 
-    const EmailAddress = EmailUserName.toLowerCase() + '@' + DomainName.toLowerCase();
-    const Password = GenerateRandomPassword();
+    if (!UserName || !EmailUserName || DomainNames.length === 0 || !AlertEmailAddress) {
+        return next(new ErrorHandler("All required fields are not provided", 400));
+    }
+
+    const WorkspaceId = req.user.User.CurrentWorkspaceId;
+
+    const Orders = await OrderModel.findAll({
+        where: {
+            WorkspaceId: WorkspaceId,
+            DomainPurchaseStatus: "Succeeded",
+            StripePaymentStatus: "Succeeded"
+        }
+    });
+
+    const Domains = await DomainModel.findAll({
+        where: {
+            OrderId: {
+                [Op.in]: Orders.map(order => order.id)
+            },
+            MailHostingConfiguration: true,
+            Verification: true
+        }
+    });
+
+    const MailAccounts = [];
+    const FailedAccounts = [];
 
     const AccessToken = await getAccessToken();
 
-    try {
-        const response = await axios.post(
-            `https://mail.zoho.com/api/organization/${process.env.ZOHO_ORG_ID}/accounts`,
-            {
-                primaryEmailAddress: EmailAddress,
-                password: Password,
-                firstName: UserName.split(" ")[0] || UserName,
-                lastName: UserName.split(" ")[1] || "",
-                displayName: UserName,
-                userExpiry: 100,
-                role: "member", // member, admin, superadmin
-                country: "us",
-                language: "en",
-                timeZone: "America/New_York",
-                oneTimePassword: true,
-            },
-            {
-                headers: {
-                    Authorization: `Zoho-oauthtoken ${AccessToken}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
+    for (const DomainName of DomainNames) {
+        const Domain = Domains.find(domain => domain.DomainName === DomainName);
+
+        if (!Domain) {
+            return next(new ErrorHandler("This domain is not associated with this workspace.", 400));
+        }
+
+        const EmailAddress = EmailUserName.toLowerCase() + '@' + DomainName.toLowerCase();
+        const Password = GenerateRandomPassword();
+
+
+        try {
+            const response = await axios.post(
+                `https://mail.zoho.com/api/organization/${process.env.ZOHO_ORG_ID}/accounts`,
+                {
+                    primaryEmailAddress: EmailAddress,
+                    password: Password,
+                    firstName: UserName.split(" ")[0] || UserName,
+                    lastName: UserName.split(" ")[1] || "",
+                    displayName: UserName,
+                    userExpiry: 100,
+                    role: "member", // member, admin, superadmin
+                    country: "us",
+                    language: "en",
+                    timeZone: "America/New_York",
+                    oneTimePassword: true,
                 },
-            }
-        );
+                {
+                    headers: {
+                        Authorization: `Zoho-oauthtoken ${AccessToken}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                }
+            );
 
-        console.log("Zoho Account Response:", response.data);
+            console.log("Zoho Account Response:", response.data);
 
-        await SendZohoAccountCreationEmail(AlertEmailAddress, EmailAddress, Password);
+            await SendZohoAccountCreationEmail(AlertEmailAddress, EmailAddress, Password);
 
-        res.status(200).json({
-            success: true,
-            message: "Zoho mail account created successfully",
-            EmailAddress,
-        });
-    } catch (error) {
-        console.error('Error creating Zoho mail account:', error?.response?.data || error.message);
-        return next(new ErrorHandler("Failed to create Zoho mail account", 500));
+            MailAccounts.push(EmailAddress);
+        } catch (error) {
+            console.error('Error creating Zoho mail account:', error?.response?.data || error.message);
+            FailedAccounts.push({
+                EmailAddress,
+                Error: error?.response?.data?.data?.moreInfo
+            });
+        }
     }
+
+    for (const EmailAddress of MailAccounts) {
+        await EmailAccountModel.create({
+            WorkspaceId,
+            Email: EmailAddress,
+            Provider: "Zoho",
+            RefreshToken: process.env.ZOHO_REFRESH_TOKEN,
+            AccessToken,
+            ExpiresIn: new Date(Date.now() + 1000 * 60 * 60)
+        });
+    }
+
+    res.status(200).json({
+        success: true,
+        message: "Zoho mail accounts created successfully",
+        MailAccounts,
+        FailedAccounts
+    });
+});
+
+exports.GetMailHostingDomains = catchAsyncError(async (req, res, next) => {
+    const WorkspaceId = req.user.User.CurrentWorkspaceId;
+    
+    const Orders = await OrderModel.findAll({
+        where: {
+            WorkspaceId: WorkspaceId,
+            DomainPurchaseStatus: "Succeeded",
+            StripePaymentStatus: "Succeeded"
+        }
+    });
+
+    const Domains = await DomainModel.findAll({
+        where: {
+            OrderId: {
+                [Op.in]: Orders.map(order => order.id)
+            },
+            MailHostingConfiguration: true,
+            Verification: true
+        }
+    });
+
+    res.status(200).json({
+        success: true,
+        message: "Mail hosting domains retrieved successfully",
+        Domains: Domains.map(domain => domain.DomainName) || []
+    });
 });
 
 /* PART 2: Hassle-free Email Setup | Gmail/Google Suite */
@@ -1461,20 +1793,26 @@ exports.MicrosoftAccountCallback = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler("Authorization code not provided", 400));
     }
 
-    const tokenResponse = await axios.post(`https://login.microsoftonline.com/common/oauth2/v2.0/token`,
-        new URLSearchParams({
-            client_id: ClientId,
-            client_secret: ClientSecret,
-            code,
-            redirect_uri: RedirectUri,
-            grant_type: 'authorization_code',
-        }).toString(),
-        {
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
+    try {
+        const tokenResponse = await axios.post(`https://login.microsoftonline.com/common/oauth2/v2.0/token`,
+            new URLSearchParams({
+                client_id: ClientId,
+                client_secret: ClientSecret,
+                code,
+                redirect_uri: RedirectUri,
+                grant_type: 'authorization_code',
+            }).toString(),
+            {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
             }
-        }
-    );
+        );
+    } catch (error) {
+        console.log(error.response.data.error_description);
+        return next(new ErrorHandler(error.response.data.error_description, 400));
+    } 
+
     console.log("Token generated");
     const { access_token, refresh_token, expires_in } = tokenResponse.data;
 
