@@ -13,6 +13,12 @@ const ngrokLink = "https://19a2-202-47-41-16.ngrok-free.app/coldCall";
 
 const { Voicebot } = require("../Utils/coldCallUtils");
 
+const fs = require("fs");
+const ELEVEN_LABS_API_KEY = process.env.ELEVEN_LABS_API_KEY;
+const ELEVEN_LABS_API_URL = process.env.ELEVEN_LABS_API_URL || "https://api.elevenlabs.io/";
+const FormData = require('form-data');
+const axios = require('axios');
+
 exports.CreateHumanCall = catchAsyncError(async (req, res, next) => {
     const { LeadNumber, AgentNumber } = req.body;
 
@@ -140,4 +146,88 @@ exports.ProcessUserInput = catchAsyncError(async (req, res, next) => {
 
     res.type('text/xml');
     res.send(twiml.toString());
+});
+
+exports.CreateCloneVoice = catchAsyncError(async (req, res, next) => {
+    const { CurrentWorkspaceId } = req.user.User;
+    const { name, remove_background_noise } = req.body;
+
+    if (!req.file) {
+        return next(new ErrorHandler("Audio file is required", 400));
+    }
+    if (!name) {
+        return next(new ErrorHandler("Voice name is required", 400));
+    }
+
+    try {
+        const audioFile = req.file;
+
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('files', audioFile.buffer, {
+            filename: audioFile.originalname,
+            contentType: audioFile.mimetype
+        });
+
+        if (typeof remove_background_noise !== 'undefined') {
+            formData.append('remove_background_noise', remove_background_noise.toString());
+        }
+
+        const response = await axios.post(
+            `${ELEVEN_LABS_API_URL}/v1/voices/add`,
+            formData,
+            {
+                headers: {
+                    ...formData.getHeaders(),
+                    'xi-api-key': ELEVEN_LABS_API_KEY
+                }
+            }
+        );
+
+        const data = response.data;
+
+        res.status(200).json({
+            success: true,
+            message: "Clone voice created successfully",
+            voiceId: data.voice_id,
+            elevenLabsResponse: data,
+        });
+
+    } catch (error) {
+        console.error("Error creating clone voice:", error?.response?.data || error.message);
+        return next(new ErrorHandler("Internal Server Error during voice cloning", 500));
+    }
+});
+
+exports.TextToSpeech = catchAsyncError(async (req, res, next) => {
+    const { text, voiceId } = req.body;
+
+    if (!text || !voiceId) {
+        return next(new ErrorHandler("Text and voice ID are required", 400));
+    }
+
+    try {
+        const response = await axios.post(
+            `${ELEVEN_LABS_API_URL}/v1/text-to-speech/${voiceId}`,
+            {text},
+            {
+                headers: {
+                    'xi-api-key': ELEVEN_LABS_API_KEY,
+                    'Content-Type': 'application/json'
+                },
+                responseType: 'arraybuffer'
+            }
+        );
+        const audioBuffer = response.data;
+        const audioFilePath = `./public/audio/${Date.now()}_tts.mp3`;
+        fs.writeFileSync(audioFilePath, audioBuffer);
+        res.status(200).json({
+            success: true,
+            message: "Text to speech conversion successful",
+            audioFilePath
+        });
+    } catch (error) {
+        console.error("Error in Text to Speech:", error?.response?.data || error.message);
+        return next(new ErrorHandler("Internal Server Error during text to speech conversion", 500));
+    }
 });
