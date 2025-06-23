@@ -1793,20 +1793,26 @@ exports.MicrosoftAccountCallback = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler("Authorization code not provided", 400));
     }
 
-    const tokenResponse = await axios.post(`https://login.microsoftonline.com/common/oauth2/v2.0/token`,
-        new URLSearchParams({
-            client_id: ClientId,
-            client_secret: ClientSecret,
-            code,
-            redirect_uri: RedirectUri,
-            grant_type: 'authorization_code',
-        }).toString(),
-        {
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
+    try {
+        const tokenResponse = await axios.post(`https://login.microsoftonline.com/common/oauth2/v2.0/token`,
+            new URLSearchParams({
+                client_id: ClientId,
+                client_secret: ClientSecret,
+                code,
+                redirect_uri: RedirectUri,
+                grant_type: 'authorization_code',
+            }).toString(),
+            {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
             }
-        }
-    );
+        );
+    } catch (error) {
+        console.log(error.response.data.error_description);
+        return next(new ErrorHandler(error.response.data.error_description, 400));
+    } 
+
     console.log("Token generated");
     const { access_token, refresh_token, expires_in } = tokenResponse.data;
 
