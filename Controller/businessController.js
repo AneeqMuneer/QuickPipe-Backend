@@ -168,7 +168,13 @@ exports.AddDocumentData = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler("Business not found", 404));
     }
 
-    const SavedFiles = Business.DocumentData.length > 0 ? Business.DocumentData : [];
+    let KeptFiles = [];
+    if (KeepFiles && KeepFiles.length > 0) {
+        let SavedFiles = Array.isArray(Business.DocumentData) ? Business.DocumentData : [];
+        if (Array.isArray(KeepFiles) && KeepFiles.length > 0) {
+            KeptFiles = SavedFiles.filter(file => KeepFiles.includes(file.Name));
+        }
+    }
 
     const DocumentData = [];
     const UnsavedFiles = [];
@@ -194,11 +200,7 @@ exports.AddDocumentData = catchAsyncError(async (req, res, next) => {
         }
     }
 
-    if (KeepFiles && KeepFiles.length > 0) {
-        Business.DocumentData = [...SavedFiles, ...DocumentData];
-    } else {
-        Business.DocumentData = DocumentData;
-    }
+    Business.DocumentData = [...KeptFiles, ...DocumentData];
 
     await Business.save();
 

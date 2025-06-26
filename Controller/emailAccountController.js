@@ -1053,27 +1053,27 @@ exports.ConfigureEmailHosting = catchAsyncError(async (req, res, next) => {
                 "Authorization": `Bearer ${process.env.SENDGRID_API_KEY}`,
                 "Content-Type": "application/json",
             }
-    
+
             const DomainAuthenticateSendgridResponse = await axios.post(DomainAuthenticateSendgridUrl, {
                 domain: Domain,
                 automatic_security: true,
             }, {
                 headers,
             });
-    
+
             if (!DomainAuthenticateSendgridResponse?.data?.dns) {
                 return next(new ErrorHandler("Domain authentication failed", 400));
             }
-    
+
             const DnsRecords = DomainAuthenticateSendgridResponse.data.dns;
-    
+
             SetHostUrl += `&HostName${counter}=${DnsRecords.mail_cname.host}&RecordType${counter}=CNAME&Address${counter}=${DnsRecords.mail_cname.data}&TTL${counter}=3600`;
             counter++;
             SetHostUrl += `&HostName${counter}=${DnsRecords.dkim1.host}&RecordType${counter}=CNAME&Address${counter}=${DnsRecords.dkim1.data}&TTL${counter}=3600`;
             counter++;
             SetHostUrl += `&HostName${counter}=${DnsRecords.dkim2.host}&RecordType${counter}=CNAME&Address${counter}=${DnsRecords.dkim2.data}&TTL${counter}=3600`;
             counter++;
-    
+
             console.log("Sendgrid CNAME Authentication records added.");
         }
 
@@ -1133,7 +1133,7 @@ exports.ConfigureEmailHosting = catchAsyncError(async (req, res, next) => {
 });
 
 exports.Sendgrid = catchAsyncError(async (req, res, next) => {
-    const url0 = "https://api.sendgrid.com/v3/whitelabel/domains?domain=quickpipe.xyz";
+    const url0 = "https://api.sendgrid.com/v3/whitelabel/links?domain=quickpipe.xyz";
     const headers = {
         "Authorization": `Bearer ${process.env.SENDGRID_API_KEY}`,
         "Content-Type": "application/json",
@@ -1147,11 +1147,12 @@ exports.Sendgrid = catchAsyncError(async (req, res, next) => {
     console.log("Domain found successfully");
 
     if (response0.data.length === 0) {
-        const url1 = "https://api.sendgrid.com/v3/whitelabel/domains";
+        const url1 = "https://api.sendgrid.com/v3/whitelabel/links";
 
         const response1 = await axios.post(url1, {
             domain: "quickpipe.xyz",
-            automatic_security: true,
+            subdomain: "quickpipe",
+            default: true,
         }, {
             headers: {
                 "Authorization": `Bearer ${process.env.SENDGRID_API_KEY}`,
@@ -1160,13 +1161,13 @@ exports.Sendgrid = catchAsyncError(async (req, res, next) => {
         });
 
         console.log(response1.data);
-        console.log("Domain added successfully");
+        console.log("link added successfully");
     } else {
-        console.log("Domain already exists");
+        console.log("link already exists");
     }
 
 
-    const url2 = "https://api.sendgrid.com/v3/whitelabel/domains/26402260/validate";
+    const url2 = "https://api.sendgrid.com/v3/whitelabel/links/4673585/validate";
 
     try {
         const response2 = await axios.post(url2, null, {
@@ -1179,9 +1180,6 @@ exports.Sendgrid = catchAsyncError(async (req, res, next) => {
         console.log(error.response.data.errors[0].message);
         console.log("Domain validation failed");
     }
-
-
-    const url3 = 
 
     res.status(200).json({
         success: true,
@@ -1260,6 +1258,14 @@ exports.VerifyEmailHosting = catchAsyncError(async (req, res, next) => {
         DKIMVerify: {
             Success: false,
             Message: "DKIM record verification could not be conducted",
+        },
+        SendgridDomainValidate: {
+            Success: false,
+            Message: "Sendgrid domain validation could not be conducted",
+        },
+        LinkBrandingValidate: {
+            Success: false,
+            Message: "Link branding validation could not be conducted",
         }
     };
 
@@ -1598,6 +1604,51 @@ exports.VerifyEmailHosting = catchAsyncError(async (req, res, next) => {
         VerificationProgress.DKIMVerify.Message = "DKIM record already verified";
         console.log("DKIM record already verified");
     }
+
+    // Validate domain in sendgrid
+    const CheckSendgridDomainUrl = `https://api.sendgrid.com/v3/whitelabel/domains?domain=${Domain}`;
+    const headers = {
+        "Authorization": `Bearer ${process.env.SENDGRID_API_KEY}`,
+        "Content-Type": "application/json",
+    }
+
+    const CheckSendgridDomainResponse = await axios.get(CheckSendgridDomainUrl, {
+        headers,
+    });
+
+    if (CheckSendgridDomainResponse.data.length > 0) {
+        const CheckSendgridDomainId = CheckSendgridDomainResponse.data[0].id;
+
+        const ValidateSendgridDomainUrl = `https://api.sendgrid.com/v3/whitelabel/domains/${CheckSendgridDomainId}/validate`;
+
+        try {
+            const ValidateSendgridDomainResponse = await axios.post(ValidateSendgridDomainUrl, null, {
+                headers,
+            });
+
+            if (ValidateSendgridDomainResponse.data.valid) {
+                VerificationProgress.SendgridDomainValidate.Success = true;
+                VerificationProgress.SendgridDomainValidate.Message = "Sendgrid domain validated successfully";
+                console.log("Sendgrid domain validated successfully");
+            } else {
+                VerificationProgress.SendgridDomainValidate.Success = false;
+                VerificationProgress.SendgridDomainValidate.Message = "Sendgrid domain couldn't be validated completely. Please try again later.";
+            }
+        } catch (error) {
+            const response = error.response.data;
+            VerificationProgress.SendgridDomainValidate.Success = false;
+            VerificationProgress.SendgridDomainValidate.Message = response.errors[0].message;
+            console.log("Sendgrid domain validation failed. Please try again later.");
+        }
+    } else {
+        VerificationProgress.SendgridDomainValidate.Success = true;
+        VerificationProgress.SendgridDomainValidate.Message = "Sendgrid domain doesn't exist";
+        console.log("Sendgrid domain doesn't exist");
+    }
+
+
+    // Validate link branding in domain
+
 
     WorkspaceDomain.Verification = true;
     await WorkspaceDomain.save();

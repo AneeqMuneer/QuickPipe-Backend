@@ -1,8 +1,8 @@
 Lead Outreach
 -----------------------------------------------------
 1. Sending emails using test emails
-    a. Add authentication DNS records 
-    b. Add Link tracking DNS records
+    a. Add authentication DNS records ✅
+    b. Add Link tracking DNS records 
     c. Automate SSL certificate creation
     d. Add the DNS records for the certificate to the domain
     e. Send the email
@@ -25,7 +25,6 @@ Lead Outreach
 17. Add leads using CSV
 18. Add leads using Google Sheets
 19. Manually add leads
-20. Business API issues
 
 
 

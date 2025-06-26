@@ -4,6 +4,8 @@ exports.CleanExtractedText = (text) => {
     }
 
     return text
+        // Remove non-printable/control Unicode characters except tab, newline, carriage return
+        .replace(/[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD]/g, '')
         // Remove special characters and formatting
         .replace(/[|:\n\s\/]+/g, ' ') // Remove pipes, colons, excessive newlines, slashes
         .replace(/[•\-\*]+/g, ' ') // Remove bullet points and dashes
