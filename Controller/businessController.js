@@ -6,7 +6,6 @@ const BusinessModel = require("../Model/businessModel");
 const cheerio = require('cheerio');
 const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
-const fs = require('fs');
 
 const { CleanExtractedText } = require("../Utils/businessUtils");
 
@@ -73,14 +72,24 @@ exports.AddWebsiteData = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler("Business not found", 404));
     }
 
-    if (!WebsiteUrls || !Array.isArray(WebsiteUrls) || WebsiteUrls.length === 0) {
-        return next(new ErrorHandler("Please provide at least one website URL", 400));
-    }
-
     const WebsiteData = [];
 
     for (const url of WebsiteUrls) {
         try {
+            const urlPattern = new RegExp(
+                '^https:\\/\\/' + // require https:// only
+                '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // domain name
+                '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
+                '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // port and path
+                '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
+                '(\\#[-a-z\\d_]*)?$', // fragment locator
+                'i'
+            );
+
+            if (!urlPattern.test(url)) {
+                return next(new ErrorHandler(`Invalid URL format: ${url}`, 400));
+            }
+
             const response = await fetch(url);
             const html = await response.text();
             const $ = cheerio.load(html);
@@ -144,10 +153,11 @@ exports.AddWebsiteData = catchAsyncError(async (req, res, next) => {
 
 // Only PDF and DOCX files are allowed
 exports.AddDocumentData = catchAsyncError(async (req, res, next) => {
+    const { KeepFiles } = req.body;
     const { CurrentWorkspaceId } = req.user.User;
 
-    if (!req.files || req.files.length === 0) {
-        return next(new ErrorHandler("No documents uploaded", 400));
+    if (!req.files) {
+        req.files = [];
     }
 
     const Business = await BusinessModel.findOne({
@@ -157,6 +167,8 @@ exports.AddDocumentData = catchAsyncError(async (req, res, next) => {
     if (!Business) {
         return next(new ErrorHandler("Business not found", 404));
     }
+
+    const SavedFiles = Business.DocumentData.length > 0 ? Business.DocumentData : [];
 
     const DocumentData = [];
     const UnsavedFiles = [];
@@ -182,7 +194,12 @@ exports.AddDocumentData = catchAsyncError(async (req, res, next) => {
         }
     }
 
-    Business.DocumentData = DocumentData;
+    if (KeepFiles && KeepFiles.length > 0) {
+        Business.DocumentData = [...SavedFiles, ...DocumentData];
+    } else {
+        Business.DocumentData = DocumentData;
+    }
+
     await Business.save();
 
     res.status(200).json({

@@ -21,12 +21,11 @@ Lead Outreach
 13. Stats widget (SentEmails ReplyEmails OpenedEmail Opportunities)
 14. Summary widget (EmailAccount TotalLeads Meetings Opportunities)
 15. Top people widget
-16. new people are pre-lead not discovery
+16. New people are pre-lead not discovery
 17. Add leads using CSV
 18. Add leads using Google Sheets
 19. Manually add leads
 20. Business API issues
-21. AI lead scouts ai query
 
 
 
