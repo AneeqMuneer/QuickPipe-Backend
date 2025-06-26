@@ -1,5 +1,10 @@
 const moment = require("moment-timezone");
 const axios = require("axios");
+const OpenAI = require('openai');
+
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+});
 
 exports.ExtractTitleAndLocation = (description) => {
     // Common job title patterns - improved to capture standalone titles
@@ -157,3 +162,56 @@ exports.ExtractAllPossible = (description) => {
 
     return { title, location, company, keyword };
 };
+
+exports.AiSearchQuery = async (query) => {
+    const prompt = `
+    You are an expert at converting user search queries into filters compatible with the Apollo API.
+    
+    ### User Query
+    ${query}
+    
+    ### Task
+    Analyze the user query above and output a **single JSON object** matching this exact structure:
+    
+    {
+        "Job titles": ["title1", "title2", "title3"] otherwise [], (This is job title of the lead that the user is looking for)
+        "Location": ["location1", "location2", "location3"] otherwise [], (This is the location that the lead would be working in)
+        "Industry & Keywords": ["industry1", "industry2", "industry3"] otherwise [], (This is the industry that the lead would be working in)
+        "Employees": ["1-10", "11-50"] (the array can contain multiple ranges from the follwing list or none of them: 1-10, 11-50, 51-200, 201-500, 501-1000, 1000+) otherwise [], (This is the number of employees that the company has),
+        "Revenue": ["$0-1M", "$1M-10M"] (the array can contain multiple ranges from the follwing list or none of them: $0-1M, $1M-10M, $10M-50M, $250M-1B, $1B+) otherwise [], (This is the revenue that the company has),
+        "Technologies": ["technology1", "technology2", "technology3"] otherwise [], (This is the technologies that the company uses or the lead works with)
+        "Funding type": ["Series A", "Acquired"] (the array can contain multiple values from the follwing list or none of them: Seed, Series A, Series B, Series C+, IPO, Acquired, Bootstrapped) otherwise [], (This is the funding type of the company)
+        "Name": "LeadName", (This is the name of the lead)
+        "Company": "CompanyName", (This is the name of the company)
+    }
+    
+    - Use arrays for multi-value fields, even if there's only one value.
+    - Use empty arrays "" for missing data.
+    - Use empty strings for Name and Company if not provided.
+    - Do **NOT** output any additional keys or text—**only the JSON object**.
+    
+    ### Example
+    **Input query:** "VP of Marketing at startup in NYC using HubSpot, revenue 10M-50M"
+    **Correct output:**
+    {
+      "Job titles": ["VP of Marketing"],
+      "Location": ["New York, NY"],
+      "Industry & Keywords": ["startup"],
+      "Employees": [],
+      "Revenue": ["10M-50M"],
+      "Technologies": ["HubSpot"],
+      "Funding type": [],
+      "Name": "",
+      "Company": ""
+    }`;
+    
+    const response = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        store: true,
+        messages: [
+            { "role": "user", "content": prompt },
+        ],
+    });
+    
+    console.log(response.choices[0].message.content);
+}

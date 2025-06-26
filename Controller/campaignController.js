@@ -6,6 +6,7 @@ const LeadModel = require("../Model/leadModel");
 const SequenceModel = require("../Model/sequenceModel");
 const ScheduleModel = require("../Model/scheduleModel");
 const TemplateModel = require("../Model/templateModel");
+const EmailAccountModel = require("../Model/emailAccountModel");
 
 const { getRandomSendingTime } = require("../Utils/leadUtils");
 
@@ -688,9 +689,22 @@ exports.GetAllTimezones = catchAsyncError(async (req , res , next) => {
     });
 });
 
-/* OPTIONS TAB */
+/* Testing APIs */
 
-// Active pe add cron job to run api
-// cron job mein update last interaction & campaign step
-// create cron job to send email
-// create cron job to run campaign at the end of the API
+exports.SendGoogleMail = catchAsyncError(async (req , res , next) => {
+    const { ReceiverEmail , Subject , Body } = req.body;
+
+    const EmailAccount = await EmailAccountModel.findOne({
+        where: {
+            WorkspaceId: req.user.User.CurrentWorkspaceId,
+            Provider: "Google",
+        },
+    });
+
+    if (!EmailAccount) {
+        return next(new ErrorHandler("No Google Email account found", 404));
+    }
+
+    
+
+});

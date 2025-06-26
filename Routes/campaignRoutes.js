@@ -6,32 +6,35 @@ const {
     GetCampaignSequence , UpdateCampaignSequence , GetCampaignSchedule , 
     UpdateCampaignSchedule , SendCampaignMail , GenerateAIEmail , 
     GenerateAISequence , ActivePauseCampaign , GenerateAISchedule ,
-    RunCampaign , GetAllTimezones , CreateTemplate , GetAllTemplates
+    RunCampaign , GetAllTimezones , CreateTemplate , GetAllTemplates,
+    SendGoogleMail
 } = require("../Controller/campaignController");
 const { VerifyUser } = require("../Middleware/userAuth");
 const { VerifyCampaign } = require("../Middleware/campaignAuth");
 
-router.post("/CreateCampaign", VerifyUser , CreateCampaign);
-router.get("/GetAllCampaigns", VerifyUser , GetAllCampaigns);
-router.get("/GetCampaignById/:campaignid", VerifyUser , VerifyCampaign , GetCampaignById);
-router.put("/UpdateCampaign/:campaignid", VerifyUser , VerifyCampaign , UpdateCampaign);
-router.delete("/DeleteCampaign/:campaignid", VerifyUser , VerifyCampaign , DeleteCampaign);
-router.put("/ActivePauseCampaign/:campaignid", VerifyUser , VerifyCampaign , ActivePauseCampaign);
-router.put("/RunCampaign/:campaignid", VerifyUser , VerifyCampaign , RunCampaign);
+router.route("/CreateCampaign").post(VerifyUser , CreateCampaign);
+router.route("/GetAllCampaigns").get(VerifyUser , GetAllCampaigns);
+router.route("/GetCampaignById/:campaignid").get(VerifyUser , VerifyCampaign , GetCampaignById);
+router.route("/UpdateCampaign/:campaignid").put(VerifyUser , VerifyCampaign , UpdateCampaign);
+router.route("/DeleteCampaign/:campaignid").delete(VerifyUser , VerifyCampaign , DeleteCampaign);
+router.route("/ActivePauseCampaign/:campaignid").put(VerifyUser , VerifyCampaign , ActivePauseCampaign);
+router.route("/RunCampaign/:campaignid").put(VerifyUser , VerifyCampaign , RunCampaign);
 
-router.get("/GetCampaignLeads/:campaignid/people", VerifyUser , VerifyCampaign , GetCampaignLeads);
+router.route("/GetCampaignLeads/:campaignid/people").get(VerifyUser , VerifyCampaign , GetCampaignLeads);
 
-router.get("/GetCampaignSequence/:campaignid/sequence", VerifyUser , VerifyCampaign , GetCampaignSequence);
-router.put("/UpdateCampaignSequence/:campaignid/sequence", VerifyUser , VerifyCampaign , UpdateCampaignSequence);
-router.put("/SendCampaignMail/:campaignid/sequence", VerifyUser , VerifyCampaign , SendCampaignMail);
-router.post("/GenerateAIEmail/:campaignid/sequence", VerifyUser , VerifyCampaign , GenerateAIEmail);
-router.post("/GenerateAISequence/:campaignid/sequence", VerifyUser , VerifyCampaign , GenerateAISequence);
-router.post("/CreateTemplate/sequence", VerifyUser , CreateTemplate);
-router.get("/GetAllTemplates/sequence", VerifyUser , GetAllTemplates);
+router.route("/GetCampaignSequence/:campaignid/sequence").get(VerifyUser , VerifyCampaign , GetCampaignSequence);
+router.route("/UpdateCampaignSequence/:campaignid/sequence").put(VerifyUser , VerifyCampaign , UpdateCampaignSequence);
+router.route("/SendCampaignMail/:campaignid/sequence").put(VerifyUser , VerifyCampaign , SendCampaignMail);
+router.route("/GenerateAIEmail/:campaignid/sequence").post(VerifyUser , VerifyCampaign , GenerateAIEmail);
+router.route("/GenerateAISequence/:campaignid/sequence").post(VerifyUser , VerifyCampaign , GenerateAISequence);
+router.route("/CreateTemplate/sequence").post(VerifyUser , CreateTemplate);
+router.route("/GetAllTemplates/sequence").get(VerifyUser , GetAllTemplates);
 
-router.get("/GetCampaignSchedule/:campaignid/schedule", VerifyUser , VerifyCampaign , GetCampaignSchedule);
-router.put("/UpdateCampaignSchedule/:campaignid/schedule", VerifyUser , VerifyCampaign , UpdateCampaignSchedule);
-router.post("/GenerateAISchedule/:campaignid/schedule", VerifyUser , VerifyCampaign , GenerateAISchedule);
-router.get("/GetAllTimezones", GetAllTimezones);
+router.route("/GetCampaignSchedule/:campaignid/schedule").get(VerifyUser , VerifyCampaign , GetCampaignSchedule);
+router.route("/UpdateCampaignSchedule/:campaignid/schedule").put(VerifyUser , VerifyCampaign , UpdateCampaignSchedule);
+router.route("/GenerateAISchedule/:campaignid/schedule").post(VerifyUser , VerifyCampaign , GenerateAISchedule);
+router.route("/GetAllTimezones").get(GetAllTimezones);
+
+router.route("/SendGoogleMail").post(VerifyUser , SendGoogleMail);
 
 module.exports = router;

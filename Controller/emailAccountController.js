@@ -887,7 +887,8 @@ exports.ConfigureWebForwarding = catchAsyncError(async (req, res, next) => {
 });
 
 exports.ConfigureEmailHosting = catchAsyncError(async (req, res, next) => {
-    const { Domain } = req.body;
+    let { Domain } = req.body;
+    Domain = Domain.toLowerCase();
 
     if (!Domain) {
         return next(new ErrorHandler("Domain name not provided", 400));
@@ -1032,7 +1033,53 @@ exports.ConfigureEmailHosting = catchAsyncError(async (req, res, next) => {
 
 
 
-        // Step 6: Add the domain to Zoho
+        // Step 6: Add Sendgrid CNAME records
+        const SendgridGetAuthenticateDomainUrl = `https://api.sendgrid.com/v3/whitelabel/domains?domain=${Domain}`;
+
+        const SendgridGetAuthenticateDomainResponse = await axios.get(SendgridGetAuthenticateDomainUrl, {
+            headers: {
+                "Authorization": `Bearer ${process.env.SENDGRID_API_KEY}`,
+                "Content-Type": "application/json",
+            },
+        });
+
+        if (SendgridGetAuthenticateDomainResponse.data.length > 0) {
+            console.log("Domain already exists in Sendgrid");
+        } else {
+            console.log("Domain does not exist in Sendgrid");
+
+            const DomainAuthenticateSendgridUrl = "https://api.sendgrid.com/v3/whitelabel/domains";
+            const headers = {
+                "Authorization": `Bearer ${process.env.SENDGRID_API_KEY}`,
+                "Content-Type": "application/json",
+            }
+    
+            const DomainAuthenticateSendgridResponse = await axios.post(DomainAuthenticateSendgridUrl, {
+                domain: Domain,
+                automatic_security: true,
+            }, {
+                headers,
+            });
+    
+            if (!DomainAuthenticateSendgridResponse?.data?.dns) {
+                return next(new ErrorHandler("Domain authentication failed", 400));
+            }
+    
+            const DnsRecords = DomainAuthenticateSendgridResponse.data.dns;
+    
+            SetHostUrl += `&HostName${counter}=${DnsRecords.mail_cname.host}&RecordType${counter}=CNAME&Address${counter}=${DnsRecords.mail_cname.data}&TTL${counter}=3600`;
+            counter++;
+            SetHostUrl += `&HostName${counter}=${DnsRecords.dkim1.host}&RecordType${counter}=CNAME&Address${counter}=${DnsRecords.dkim1.data}&TTL${counter}=3600`;
+            counter++;
+            SetHostUrl += `&HostName${counter}=${DnsRecords.dkim2.host}&RecordType${counter}=CNAME&Address${counter}=${DnsRecords.dkim2.data}&TTL${counter}=3600`;
+            counter++;
+    
+            console.log("Sendgrid CNAME Authentication records added.");
+        }
+
+
+
+        // Step 7: Add the domain to Zoho
         const AddDomainResponse = await axios.post(ZohoApiUrl, {
             domainName: Domain,
         }, {
@@ -1049,7 +1096,7 @@ exports.ConfigureEmailHosting = catchAsyncError(async (req, res, next) => {
 
 
 
-        // Step 7: Add the CNAME TXT domain ownership proving record to the DNS records
+        // Step 8: Add the CNAME TXT domain ownership proving record to the DNS records
         const VerificationCode = AddDomainResponse.data.data.CNAMEVerificationCode;
 
         SetHostUrl += `&HostName${counter}=@&RecordType${counter}=TXT&Address${counter}=zoho-verification=${VerificationCode}.zmverify.zoho.com&TTL${counter}=3600`;
@@ -1059,7 +1106,7 @@ exports.ConfigureEmailHosting = catchAsyncError(async (req, res, next) => {
 
 
 
-        // Step 8: Set the DNS records
+        // Step 9: Set the DNS records
         const SetHostResponseXml = await axios.post(SetHostUrl);
         const SetHostResponseJson = await xml2js.parseStringPromise(SetHostResponseXml.data, { explicitArray: false, attrkey: '$' });
 
@@ -1085,8 +1132,66 @@ exports.ConfigureEmailHosting = catchAsyncError(async (req, res, next) => {
     });
 });
 
+exports.Sendgrid = catchAsyncError(async (req, res, next) => {
+    const url0 = "https://api.sendgrid.com/v3/whitelabel/domains?domain=quickpipe.xyz";
+    const headers = {
+        "Authorization": `Bearer ${process.env.SENDGRID_API_KEY}`,
+        "Content-Type": "application/json",
+    }
+
+    const response0 = await axios.get(url0, {
+        headers,
+    });
+
+    console.log(response0.data);
+    console.log("Domain found successfully");
+
+    if (response0.data.length === 0) {
+        const url1 = "https://api.sendgrid.com/v3/whitelabel/domains";
+
+        const response1 = await axios.post(url1, {
+            domain: "quickpipe.xyz",
+            automatic_security: true,
+        }, {
+            headers: {
+                "Authorization": `Bearer ${process.env.SENDGRID_API_KEY}`,
+                "Content-Type": "application/json",
+            },
+        });
+
+        console.log(response1.data);
+        console.log("Domain added successfully");
+    } else {
+        console.log("Domain already exists");
+    }
+
+
+    const url2 = "https://api.sendgrid.com/v3/whitelabel/domains/26402260/validate";
+
+    try {
+        const response2 = await axios.post(url2, null, {
+            headers,
+        });
+
+        console.log(response2.data);
+        console.log("Domain validation completed");
+    } catch (error) {
+        console.log(error.response.data.errors[0].message);
+        console.log("Domain validation failed");
+    }
+
+
+    const url3 = 
+
+    res.status(200).json({
+        success: true,
+        message: "Sendgrid stuff done",
+    });
+});
+
 exports.VerifyEmailHosting = catchAsyncError(async (req, res, next) => {
-    const { Domain } = req.body;
+    let { Domain } = req.body;
+    Domain = Domain.toLowerCase();
 
     if (!Domain) {
         return next(new ErrorHandler("Domain name not provided", 400));
@@ -1540,7 +1645,8 @@ exports.GetDomainStatus = catchAsyncError(async (req, res, next) => {
 });
 
 exports.GetDomainDNSDetails = catchAsyncError(async (req, res, next) => {
-    const { Domain } = req.body;
+    let { Domain } = req.body;
+    Domain = Domain.toLowerCase();
 
     const sld = Domain.split('.')[0];
     const tld = Domain.substring(Domain.indexOf('.') + 1);
@@ -1685,7 +1791,7 @@ exports.CreateZohoMailbox = catchAsyncError(async (req, res, next) => {
 
 exports.GetMailHostingDomains = catchAsyncError(async (req, res, next) => {
     const WorkspaceId = req.user.User.CurrentWorkspaceId;
-    
+
     const Orders = await OrderModel.findAll({
         where: {
             WorkspaceId: WorkspaceId,
@@ -1811,7 +1917,7 @@ exports.MicrosoftAccountCallback = catchAsyncError(async (req, res, next) => {
     } catch (error) {
         console.log(error.response.data.error_description);
         return next(new ErrorHandler(error.response.data.error_description, 400));
-    } 
+    }
 
     console.log("Token generated");
     const { access_token, refresh_token, expires_in } = tokenResponse.data;

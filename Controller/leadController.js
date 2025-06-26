@@ -4,7 +4,7 @@ const ErrorHandler = require("../Utils/errorHandler");
 
 require('dotenv').config();
 
-const { ExtractTitleAndLocation, EnrichLeadWithApollo, ExtractAllPossible } = require('../Utils/leadUtils');
+const { ExtractTitleAndLocation, EnrichLeadWithApollo, ExtractAllPossible, AiSearchQuery } = require('../Utils/leadUtils');
 
 const LeadModel = require("../Model/leadModel");
 const CampaignModel = require("../Model/campaignModel");
