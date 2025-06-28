@@ -46,7 +46,7 @@ router.route("/GetAccountDomains").get(GetAccountDomains);
 router.route("/zoho/callback").post(ZohoAccountCallback);
 router.route("/GetDomainDNSDetails").post(GetDomainDNSDetails);
 router.route("/Sendgrid").post(Sendgrid);
-router.route("/Sendgrid1").post(Sendgrid1);
+router.route("/Sendgrid1").post(VerifyUser, Sendgrid1);
 router.route("/Sendgrid2").post(Sendgrid2);
 router.route("/SendgridWebhook").post(SendgridWebhook);
 

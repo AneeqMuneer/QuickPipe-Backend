@@ -82,8 +82,7 @@ Lead Outreach
     d. Identify and create task from replies
 
 10. Extras
-    a. Login stuff fixed
-    b. Business APIs
+    a. Business APIs
 
 
 
