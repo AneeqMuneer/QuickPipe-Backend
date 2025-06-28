@@ -1045,6 +1045,17 @@ exports.ConfigureEmailHosting = catchAsyncError(async (req, res, next) => {
 
         if (SendgridGetAuthenticateDomainResponse.data.length > 0) {
             console.log("Domain already exists in Sendgrid");
+
+            const DnsRecords = SendgridGetAuthenticateDomainResponse.data[0].dns;
+
+            SetHostUrl += `&HostName${counter}=${DnsRecords.mail_cname.host}&RecordType${counter}=CNAME&Address${counter}=${DnsRecords.mail_cname.data}&TTL${counter}=3600`;
+            counter++;
+            SetHostUrl += `&HostName${counter}=${DnsRecords.dkim1.host}&RecordType${counter}=CNAME&Address${counter}=${DnsRecords.dkim1.data}&TTL${counter}=3600`;
+            counter++;
+            SetHostUrl += `&HostName${counter}=${DnsRecords.dkim2.host}&RecordType${counter}=CNAME&Address${counter}=${DnsRecords.dkim2.data}&TTL${counter}=3600`;
+            counter++;
+
+            console.log("Sendgrid CNAME Authentication records added.");
         } else {
             console.log("Domain does not exist in Sendgrid");
 
@@ -1075,6 +1086,54 @@ exports.ConfigureEmailHosting = catchAsyncError(async (req, res, next) => {
             counter++;
 
             console.log("Sendgrid CNAME Authentication records added.");
+        }
+
+
+
+        // Step 7: Add link branding CNAME records
+        const CheckLinkBrandingUrl = `https://api.sendgrid.com/v3/whitelabel/links?domain=${Domain}`;
+        const headers = {
+            "Authorization": `Bearer ${process.env.SENDGRID_API_KEY}`,
+            "Content-Type": "application/json",
+        }
+
+        const CheckLinkBrandingResponse = await axios.get(CheckLinkBrandingUrl, {
+            headers,
+        });
+
+        if (CheckLinkBrandingResponse.data.length > 0) {
+            console.log("Branded link for the domain already exists");
+
+            const DnsRecords = CheckLinkBrandingResponse.data[0].dns;
+
+            SetHostUrl += `&HostName${counter}=${DnsRecords.domain_cname.host}&RecordType${counter}=CNAME&Address${counter}=${DnsRecords.domain_cname.data}&TTL${counter}=3600`;
+            counter++;
+            SetHostUrl += `&HostName${counter}=${DnsRecords.owner_cname.host}&RecordType${counter}=CNAME&Address${counter}=${DnsRecords.owner_cname.data}&TTL${counter}=3600`;
+            counter++;
+
+            console.log("Sendgrid link branding CNAME records added");
+        } else {
+            const AddLinkBrandingUrl = "https://api.sendgrid.com/v3/whitelabel/links";
+
+            const AddLinkBrandingResponse = await axios.post(AddLinkBrandingUrl, {
+                domain: Domain,
+                subdomain: "quickpipe",
+                default: true,
+            }, {
+                headers: {
+                    "Authorization": `Bearer ${process.env.SENDGRID_API_KEY}`,
+                    "Content-Type": "application/json",
+                },
+            });
+
+            const DnsRecords = AddLinkBrandingResponse.data.dns;
+
+            SetHostUrl += `&HostName${counter}=${DnsRecords.domain_cname.host}&RecordType${counter}=CNAME&Address${counter}=${DnsRecords.domain_cname.data}&TTL${counter}=3600`;
+            counter++;
+            SetHostUrl += `&HostName${counter}=${DnsRecords.owner_cname.host}&RecordType${counter}=CNAME&Address${counter}=${DnsRecords.owner_cname.data}&TTL${counter}=3600`;
+            counter++;
+
+            console.log("Sendgrid link branding CNAME records added");
         }
 
 
@@ -1129,61 +1188,6 @@ exports.ConfigureEmailHosting = catchAsyncError(async (req, res, next) => {
     res.status(200).json({
         success: ConfigurationResults.Updated,
         ConfigurationResults
-    });
-});
-
-exports.Sendgrid = catchAsyncError(async (req, res, next) => {
-    const url0 = "https://api.sendgrid.com/v3/whitelabel/links?domain=quickpipe.xyz";
-    const headers = {
-        "Authorization": `Bearer ${process.env.SENDGRID_API_KEY}`,
-        "Content-Type": "application/json",
-    }
-
-    const response0 = await axios.get(url0, {
-        headers,
-    });
-
-    console.log(response0.data);
-    console.log("Domain found successfully");
-
-    if (response0.data.length === 0) {
-        const url1 = "https://api.sendgrid.com/v3/whitelabel/links";
-
-        const response1 = await axios.post(url1, {
-            domain: "quickpipe.xyz",
-            subdomain: "quickpipe",
-            default: true,
-        }, {
-            headers: {
-                "Authorization": `Bearer ${process.env.SENDGRID_API_KEY}`,
-                "Content-Type": "application/json",
-            },
-        });
-
-        console.log(response1.data);
-        console.log("link added successfully");
-    } else {
-        console.log("link already exists");
-    }
-
-
-    const url2 = "https://api.sendgrid.com/v3/whitelabel/links/4673585/validate";
-
-    try {
-        const response2 = await axios.post(url2, null, {
-            headers,
-        });
-
-        console.log(response2.data);
-        console.log("Domain validation completed");
-    } catch (error) {
-        console.log(error.response.data.errors[0].message);
-        console.log("Domain validation failed");
-    }
-
-    res.status(200).json({
-        success: true,
-        message: "Sendgrid stuff done",
     });
 });
 
@@ -1633,22 +1637,86 @@ exports.VerifyEmailHosting = catchAsyncError(async (req, res, next) => {
             } else {
                 VerificationProgress.SendgridDomainValidate.Success = false;
                 VerificationProgress.SendgridDomainValidate.Message = "Sendgrid domain couldn't be validated completely. Please try again later.";
+                res.status(422).json({
+                    success: false,
+                    message: "Sendgrid Domain Validation Error -- Sendgrid domain couldn't be validated completely. Please try again later.",
+                    VerificationProgress
+                });
             }
         } catch (error) {
             const response = error.response.data;
             VerificationProgress.SendgridDomainValidate.Success = false;
             VerificationProgress.SendgridDomainValidate.Message = response.errors[0].message;
             console.log("Sendgrid domain validation failed. Please try again later.");
+            res.status(422).json({
+                success: false,
+                message: "Sendgrid Domain Validation Error -- " + response.errors[0].message,
+                VerificationProgress
+            });
         }
     } else {
-        VerificationProgress.SendgridDomainValidate.Success = true;
+        VerificationProgress.SendgridDomainValidate.Success = false;
         VerificationProgress.SendgridDomainValidate.Message = "Sendgrid domain doesn't exist";
         console.log("Sendgrid domain doesn't exist");
+        res.status(422).json({
+            success: false,
+            message: "Sendgrid Domain Validation Error -- Sendgrid domain doesn't exist",
+            VerificationProgress
+        });
     }
 
 
     // Validate link branding in domain
+    const CheckLinkBrandingDomainUrl = `https://api.sendgrid.com/v3/whitelabel/links?domain=${Domain}`;
 
+    const CheckLinkBrandingDomainResponse = await axios.get(CheckLinkBrandingDomainUrl, {
+        headers,
+    });
+
+    if (CheckLinkBrandingDomainResponse.data.length > 0) {
+        const CheckLinkBrandingDomainId = CheckLinkBrandingDomainResponse.data[0].id;
+
+        const ValidateLinkBrandingDomainUrl = `https://api.sendgrid.com/v3/whitelabel/links/${CheckLinkBrandingDomainId}/validate`;
+
+        try {
+            const ValidateLinkBrandingDomainResponse = await axios.post(ValidateLinkBrandingDomainUrl, null, {
+                headers,
+            });
+
+            if (ValidateLinkBrandingDomainResponse.data.valid) {
+                VerificationProgress.LinkBrandingValidate.Success = true;
+                VerificationProgress.LinkBrandingValidate.Message = "Link branding validated successfully";
+                console.log("Link branding validated successfully");
+            } else {
+                VerificationProgress.LinkBrandingValidate.Success = false;
+                VerificationProgress.LinkBrandingValidate.Message = "Link branding couldn't be validated completely. Please try again later.";
+                res.status(422).json({
+                    success: false,
+                    message: "Link Branding Validation Error -- Link branding couldn't be validated completely. Please try again later.",
+                    VerificationProgress
+                });
+            }
+        } catch (error) {
+            const response = error.response.data;
+            VerificationProgress.LinkBrandingValidate.Success = false;
+            VerificationProgress.LinkBrandingValidate.Message = response.errors[0].message;
+            console.log("Link branding validation failed. Please try again later.");
+            res.status(422).json({
+                success: false,
+                message: "Link Branding Validation Error -- " + response.errors[0].message,
+                VerificationProgress
+            });
+        }
+    } else {
+        VerificationProgress.LinkBrandingValidate.Success = false;
+        VerificationProgress.LinkBrandingValidate.Message = "Link branding for this domain doesn't exist";
+        console.log("Link branding for this domain doesn't exist");
+        res.status(422).json({
+            success: false,
+            message: "Link Branding Validation Error -- Link branding for this domain doesn't exist",
+            VerificationProgress
+        });
+    }
 
     WorkspaceDomain.Verification = true;
     await WorkspaceDomain.save();
@@ -1775,7 +1843,11 @@ exports.CreateZohoMailbox = catchAsyncError(async (req, res, next) => {
         const Domain = Domains.find(domain => domain.DomainName === DomainName);
 
         if (!Domain) {
-            return next(new ErrorHandler("This domain is not associated with this workspace.", 400));
+            FailedAccounts.push({
+                EmailAddress: EmailUserName.toLowerCase() + '@' + DomainName.toLowerCase(),
+                Error: "Domain is not associated with this workspace"
+            });
+            continue;
         }
 
         const EmailAddress = EmailUserName.toLowerCase() + '@' + DomainName.toLowerCase();
@@ -2003,4 +2075,116 @@ exports.MicrosoftAccountCallback = catchAsyncError(async (req, res, next) => {
         }
         return next(new ErrorHandler("Failed to create email account", 500));
     }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+exports.Sendgrid = catchAsyncError(async (req, res, next) => {
+    const url = "https://api.sendgrid.com/v3/mail/send";
+
+    const data = {
+        personalizations: [
+            {
+                to: [
+                    { email: "aneeq.muneer03@gmail.com" },
+                    { email: "arhammuneer31@gmail.com" },
+                    { email: "yourdadpro999@gmail.com" },
+                ],
+                subject: "Test Campaign Email",
+                custom_args: {
+                    campaign: "test-campaign"
+                }
+            }
+        ],
+        from: {
+            email: "aneeq@quickpipe.xyz"
+        },
+        content: [
+            {
+                type: "text/html",
+                value: `<strong>Hello!</strong><br/>
+This is a <em>test email</em> to check tracking metrics.<br/><br/>
+<a href="https://example.com/test-link?user=tracking" target="_blank">Click here to test tracking</a><br/><br/>
+Thanks!<br/>
+— Aneeq`
+            }
+        ],
+        tracking_settings: {
+            click_tracking: { enable: true, enable_text: true },
+            open_tracking: { enable: true }
+        }
+    };
+
+    const headers = {
+        Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
+        "Content-Type": "application/json"
+    };
+
+    try {
+        await axios.post(url, data, { headers });
+        res.status(200).json({ success: true, message: "Emails sent successfully" });
+    } catch (error) {
+        console.log(error.response?.data);
+        res.status(500).json({ success: false, error: "Failed to send emails" });
+    }
+});
+
+exports.Sendgrid1 = catchAsyncError(async (req, res, next) => {
+    const startDate = "2025-06-27";
+    const endDate = "2025-06-27";
+    const url = `https://api.sendgrid.com/v3/stats?start_date=${startDate}&end_date=${endDate}`;
+
+    const headers = {
+        Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
+        "Content-Type": "application/json"
+    };
+
+    try {
+        const response = await axios.get(url, { headers });
+        res.status(200).json({ success: true, stats: response.data });
+    } catch (error) {
+        console.log(error.response?.data);
+        res.status(500).json({ success: false, error: "Failed to fetch stats" });
+    }
+});
+
+exports.Sendgrid2 = catchAsyncError(async (req, res, next) => {
+    const url = `https://api.sendgrid.com/v3/validations/email`;
+
+    const headers = {
+        Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
+        "Content-Type": "application/json"
+    };
+
+    try {
+        const response = await axios.post(url, {
+            email: "aneeq@quickpipe.xyz"
+        }, { headers });
+        res.status(200).json({ success: true, score: response.data });
+    } catch (error) {
+        console.log(error.response?.data);
+        res.status(500).json({ success: false, error: "Failed to fetch health score" });
+    }
+});
+
+exports.SendgridWebhook = catchAsyncError(async (req, res, next) => {
+    const events = req.body;
+
+    events.forEach(evt => {
+        console.log(`➤ Event: ${evt.event} | email: ${evt.email}` +
+            (evt.url ? ` | url: ${evt.url}` : '') +
+            (evt.response ? ` | response: ${evt.response}` : '')) +
+            ` | time: ${new Date(evt.timestamp).toLocaleString()}`;
+    });
+
+    res.status(200).send('OK');
 });

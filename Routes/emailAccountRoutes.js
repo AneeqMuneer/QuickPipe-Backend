@@ -8,7 +8,7 @@ const {
     AddOrder, UpdateOrderStatus, AddDomain, GetDomains,
     GetTlds, CheckTldRegisterable,
     ReadyGmailAccount, GmailAccountCallback, ReadyMicrosoftAccount, MicrosoftAccountCallback,
-    Sendgrid,
+    Sendgrid, Sendgrid1, Sendgrid2, SendgridWebhook
 } = require("../Controller/emailAccountController");
 const { VerifyUser } = require("../Middleware/userAuth");
 
@@ -46,6 +46,9 @@ router.route("/GetAccountDomains").get(GetAccountDomains);
 router.route("/zoho/callback").post(ZohoAccountCallback);
 router.route("/GetDomainDNSDetails").post(GetDomainDNSDetails);
 router.route("/Sendgrid").post(Sendgrid);
+router.route("/Sendgrid1").post(Sendgrid1);
+router.route("/Sendgrid2").post(Sendgrid2);
+router.route("/SendgridWebhook").post(SendgridWebhook);
 
 /* PART 2: Hassle-free Email Setup | Gmail/Google Suite */
 router.route("/ReadyGmailAccount").get(VerifyUser, ReadyGmailAccount);

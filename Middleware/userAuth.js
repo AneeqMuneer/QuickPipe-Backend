@@ -21,7 +21,19 @@ exports.VerifyUser = asyncError(async (req, res, next) => {
         );
     }
 
-    const decodedData = jwt.verify(token, process.env.JWT_SECRET);
+    let decodedData;
+    try {
+        decodedData = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+        if (err.name === 'TokenExpiredError') {
+            return next(new ErrorHandler("JWT has expired. Please login again.", 401));
+        }
+        if (err.name === 'JsonWebTokenError') {
+            return next(new ErrorHandler("Invalid token. Please login again.", 401));
+        }
+        
+        return next(new ErrorHandler("Authentication failed.", 401));
+    }
 
     const member = await UserModel.findByPk(decodedData.id);
 
