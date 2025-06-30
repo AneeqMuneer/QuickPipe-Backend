@@ -6,6 +6,9 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const xml2js = require("xml2js");
 const { setAccessToken, getAccessToken } = require('../Utils/redisUtils');
 const { Op } = require('sequelize');
+const SgMail = require('@sendgrid/mail');
+
+SgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const EmailAccountModel = require("../Model/emailAccountModel");
 const OrderModel = require("../Model/orderModel");
@@ -2091,38 +2094,94 @@ exports.MicrosoftAccountCallback = catchAsyncError(async (req, res, next) => {
 exports.Sendgrid = catchAsyncError(async (req, res, next) => {
     const url = "https://api.sendgrid.com/v3/mail/send";
 
-    const data = {
-        personalizations: [
-            {
-                to: [
-                    { email: "aneeq.muneer03@gmail.com" },
-                    { email: "arhammuneer31@gmail.com" },
-                    { email: "yourdadpro999@gmail.com" },
-                ],
-                subject: "Test Campaign Email",
-                custom_args: {
-                    campaign: "test-campaign"
-                }
-            }
-        ],
-        from: {
-            email: "aneeq@quickpipe.xyz"
-        },
-        content: [
-            {
-                type: "text/html",
-                value: `<strong>Hello!</strong><br/>
-This is a <em>test email</em> to check tracking metrics.<br/><br/>
-<a href="https://example.com/test-link?user=tracking" target="_blank">Click here to test tracking</a><br/><br/>
-Thanks!<br/>
-— Aneeq`
-            }
-        ],
+    const messages = [];
+
+    // 1. Email to receive1@gmail.com — workspace1, campaign1, from send1@gmail.com
+    messages.push({
+        personalizations: [{
+            to: [{ email: "aneeq.muneer03@gmail.com", name: "Aneeq Muneer" }],
+            subject: "Test Campaign Email",
+            custom_args: {
+                workspaceId: "workspace1",
+                campaignId: "campaign1",
+                senderEmail: "aneeq@quickpipe.xyz",
+                receiverName: "Aneeq Muneer",
+                receiverEmail: "aneeq.muneer03@gmail.com"
+            },
+            categories: ["workspace1", "campaign1", "aneeq@quickpipe.xyz"]
+        }],
+        from: { email: "aneeq@quickpipe.xyz" },
+        content: [{
+            type: "text/html",
+            value: `<strong>Hello!</strong><br/>
+  This email is part of <em>workspace1</em>, campaign1, sent from aneeq@quickpipe.xyz.<br/><br/>
+  <a href="https://example.com/test-link?user=aneeq.muneer03@gmail.com" target="_blank">Click here to test tracking</a><br/><br/>
+  Thanks!<br/>
+  — Aneeq`
+        }],
         tracking_settings: {
             click_tracking: { enable: true, enable_text: true },
             open_tracking: { enable: true }
         }
-    };
+    });
+
+    // 2. Email to receive2@gmail.com — workspace1, campaign2, from send2@gmail.com
+    messages.push({
+        personalizations: [{
+            to: [{ email: "arhammuneer31@gmail.com", name: "Arham Muneer" }],
+            subject: "Test Campaign Email",
+            custom_args: {
+                workspaceId: "workspace1",
+                campaignId: "campaign2",
+                senderEmail: "arham@quickpipe.xyz",
+                receiverName: "Arham Muneer",
+                receiverEmail: "arhammuneer31@gmail.com"
+            },
+            categories: ["workspace1", "campaign2", "arham@quickpipe.xyz"]
+        }],
+        from: { email: "arham@quickpipe.xyz" },
+        content: [{
+            type: "text/html",
+            value: `<strong>Hello!</strong><br/>
+  This email is part of <em>workspace1</em>, campaign2, sent from arham@quickpipe.xyz.<br/><br/>
+  <a href="https://example.com/test-link?user=arhammuneer31@gmail.com" target="_blank">Click here to test tracking</a><br/><br/>
+  Thanks!<br/>
+  — Aneeq`
+        }],
+        tracking_settings: {
+            click_tracking: { enable: true, enable_text: true },
+            open_tracking: { enable: true }
+        }
+    });
+
+    // 3. Email to receive3@gmail.com — workspace2, campaign1, from send1@gmail.com
+    messages.push({
+        personalizations: [{
+            to: [{ email: "yourdadpro999@gmail.com", name: "Your Dad" }],
+            subject: "Test Campaign Email",
+            custom_args: {
+                workspaceId: "workspace2",
+                campaignId: "campaign1",
+                senderEmail: "aneeq@quickpipe.xyz",
+                receiverName: "Your Dad",
+                receiverEmail: "yourdadpro999@gmail.com"
+            },
+            categories: ["workspace2", "campaign1", "aneeq@quickpipe.xyz"]
+        }],
+        from: { email: "aneeq@quickpipe.xyz" },
+        content: [{
+            type: "text/html",
+            value: `<strong>Hello!</strong><br/>
+  This email is part of <em>workspace2</em>, campaign1, sent from aneeq@quickpipe.xyz.<br/><br/>
+  <a href="https://example.com/test-link?user=yourdadpro999@gmail.com" target="_blank">Click here
+  Thanks!<br/>
+  — Aneeq`
+        }],
+        tracking_settings: {
+            click_tracking: { enable: true, enable_text: true },
+            open_tracking: { enable: true }
+        }
+    });
 
     const headers = {
         Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
@@ -2130,17 +2189,20 @@ Thanks!<br/>
     };
 
     try {
-        await axios.post(url, data, { headers });
-        res.status(200).json({ success: true, message: "Emails sent successfully" });
+        // Send each message separately to ensure distinct tagging
+        for (const msg of messages) {
+            await axios.post(url, msg, { headers });
+        }
+        res.status(200).json({ success: true, message: "All test emails sent successfully" });
     } catch (error) {
-        console.log(error.response?.data);
-        res.status(500).json({ success: false, error: "Failed to send emails" });
+        console.error(error.response?.data || error);
+        res.status(500).json({ success: false, error: "Failed to send test emails" });
     }
 });
 
 exports.Sendgrid1 = catchAsyncError(async (req, res, next) => {
-    const startDate = "2025-06-27";
-    const endDate = "2025-06-27";
+    const startDate = "2025-06-29";
+    const endDate = "2025-06-29";
     const url = `https://api.sendgrid.com/v3/stats?start_date=${startDate}&end_date=${endDate}`;
 
     const headers = {
@@ -2158,7 +2220,15 @@ exports.Sendgrid1 = catchAsyncError(async (req, res, next) => {
 });
 
 exports.Sendgrid2 = catchAsyncError(async (req, res, next) => {
-    const url = `https://api.sendgrid.com/v3/validations/email`;
+    const startDate = "2025-01-01";
+    const endDate = "2025-06-01";
+    const workspaceId = "workspace1";
+    const campaignId = "campaign1";
+
+    console.log(`Querying SendGrid stats for date: ${startDate}`);
+    console.log(`Categories being queried: ${workspaceId}, ${campaignId}`);
+
+    const url = `https://api.sendgrid.com/v3/categories/stats?start_date=${startDate}&end_date=${endDate}&categories=${workspaceId}&aggregated_by=month`;
 
     const headers = {
         Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
@@ -2166,25 +2236,111 @@ exports.Sendgrid2 = catchAsyncError(async (req, res, next) => {
     };
 
     try {
-        const response = await axios.post(url, {
-            email: "aneeq@quickpipe.xyz"
-        }, { headers });
-        res.status(200).json({ success: true, score: response.data });
+        const { data } = await axios.get(url, { headers });
+        console.log('SendGrid response:', JSON.stringify(data, null, 2));
+        res.status(200).json({ success: true, stats: data });
     } catch (error) {
-        console.log(error.response?.data);
-        res.status(500).json({ success: false, error: "Failed to fetch health score" });
+        console.error('SendGrid API Error:', error.response?.data);
+        console.error('Full error:', error.message);
+
+        if (error.response?.data?.errors) {
+            res.status(500).json({
+                success: false,
+                error: error.response.data.errors[0].message,
+                details: error.response.data
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: "Failed to fetch SendGrid stats",
+                details: error.message
+            });
+        }
     }
 });
 
-exports.SendgridWebhook = catchAsyncError(async (req, res, next) => {
-    const events = req.body;
+exports.Sendgrid3 = catchAsyncError(async (req, res, next) => {
+    console.log('Fetching all available categories from SendGrid...');
 
-    events.forEach(evt => {
-        console.log(`➤ Event: ${evt.event} | email: ${evt.email}` +
-            (evt.url ? ` | url: ${evt.url}` : '') +
-            (evt.response ? ` | response: ${evt.response}` : '')) +
-            ` | time: ${new Date(evt.timestamp).toLocaleString()}`;
-    });
+    const url = `https://api.sendgrid.com/v3/categories`;
+
+    const headers = {
+        Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
+        "Content-Type": "application/json"
+    };
+
+    try {
+        const response = await axios.get(url, { headers });
+        console.log(response);
+        console.log('Available categories:', JSON.stringify(response.data, null, 2));
+        res.status(200).json({
+            success: true,
+            categories: response.data,
+            count: response.data.length
+        });
+    } catch (error) {
+        console.error('SendGrid Categories API Error:', error.response?.data);
+        console.error('Full error:', error.message);
+
+        if (error.response?.data?.errors) {
+            res.status(500).json({
+                success: false,
+                error: error.response.data.errors[0].message,
+                details: error.response.data
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: "Failed to fetch SendGrid categories",
+                details: error.message
+            });
+        }
+    }
+
+    // const msg = {
+    //     to: 'aneeq.muneer03@gmail.com',
+    //     from: 'aneeq@quickpipe.xyz',
+    //     subject: 'Sending with SendGrid is Fun',
+    //     text: 'and easy to do anywhere, even with Node.js',
+    //     html: '<p>and easy to do anywhere, even with Node.js</p>',
+    //     categories: ['workspace1', 'campaign1', 'aneeq@quickpipe.xyz'],
+    // };
+
+    // try {
+    //     await SgMail.send(msg);
+    //     console.log('Email sent successfully');
+    // } catch (error) {
+    //     console.error(error);
+    //     if (error.response) {
+    //         console.error(error.response.body)
+    //     }
+    // }
+});
+
+exports.SendgridWebhook = catchAsyncError(async (req, res, next) => {
+    const events = Array.isArray(req.body) ? req.body : [];
+
+    events
+        .forEach(evt => {
+            try {
+                const workspaceId = evt.workspaceId || 'N/A';
+                const campaignId = evt.campaignId || 'N/A';
+                const receiverName = evt.receiverName || '';
+                const url = evt.url || '';
+                const response = evt.response || '';
+                const timestamp = evt.timestamp ? new Date(evt.timestamp * 1000).toLocaleString() : 'N/A';
+
+                console.log(
+                    `➤ Workspace: ${workspaceId} | Campaign: ${campaignId} | Event: ${evt.event} | email: ${evt.email}` +
+                    (receiverName ? ` | name: ${receiverName}` : '') +
+                    (url ? ` | url: ${url}` : '') +
+                    (response ? ` | response: ${response}` : '') +
+                    ` | time: ${timestamp}`
+                );
+            } catch (err) {
+                console.error('Error processing Sendgrid event:', err, evt);
+            }
+        });
 
     res.status(200).send('OK');
 });

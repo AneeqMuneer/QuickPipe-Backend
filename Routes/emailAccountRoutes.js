@@ -2,13 +2,13 @@ const express = require("express");
 const {
     GetAllEmailAccounts,
     GetDomainSuggestions, GetDomainPrices, CreatePaymentIntent, StripeWebhook, CheckPaymentIntentStatus,
-    PurchaseDomains, GetAccountDomains, 
+    PurchaseDomains, GetAccountDomains,
     ConfigureEmailHosting, VerifyEmailHosting, GetDomainStatus, ConfigureWebForwarding, CreateZohoMailbox, GetMailHostingDomains,
-    GetDomainDNSDetails, ZohoAccountCallback, ZohoRefreshToken, 
+    GetDomainDNSDetails, ZohoAccountCallback, ZohoRefreshToken,
     AddOrder, UpdateOrderStatus, AddDomain, GetDomains,
     GetTlds, CheckTldRegisterable,
     ReadyGmailAccount, GmailAccountCallback, ReadyMicrosoftAccount, MicrosoftAccountCallback,
-    Sendgrid, Sendgrid1, Sendgrid2, SendgridWebhook
+    Sendgrid, Sendgrid1, Sendgrid2, Sendgrid3, SendgridWebhook
 } = require("../Controller/emailAccountController");
 const { VerifyUser } = require("../Middleware/userAuth");
 
@@ -46,8 +46,9 @@ router.route("/GetAccountDomains").get(GetAccountDomains);
 router.route("/zoho/callback").post(ZohoAccountCallback);
 router.route("/GetDomainDNSDetails").post(GetDomainDNSDetails);
 router.route("/Sendgrid").post(Sendgrid);
-router.route("/Sendgrid1").post(VerifyUser, Sendgrid1);
+router.route("/Sendgrid1").post(Sendgrid1);
 router.route("/Sendgrid2").post(Sendgrid2);
+router.route("/Sendgrid3").post(Sendgrid3);
 router.route("/SendgridWebhook").post(SendgridWebhook);
 
 /* PART 2: Hassle-free Email Setup | Gmail/Google Suite */

@@ -18,9 +18,9 @@ const Campaign = sequelize.define(
       allowNull: false,
     },
     Status: {
-      type: DataTypes.ENUM("Active", "Paused", "Completed", "Cancelled"),
+      type: DataTypes.ENUM("Active", "InActive", "Completed", "Error"),
       allowNull: false,
-      defaultValue: "Paused",
+      defaultValue: "InActive",
     },
   },
   {
