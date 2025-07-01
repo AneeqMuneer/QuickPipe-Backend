@@ -6,7 +6,6 @@ const LeadModel = require("../Model/leadModel");
 const SequenceModel = require("../Model/sequenceModel");
 const ScheduleModel = require("../Model/scheduleModel");
 const TemplateModel = require("../Model/templateModel");
-const EmailAccountModel = require("../Model/emailAccountModel");
 
 const { getRandomSendingTime } = require("../Utils/leadUtils");
 
@@ -14,10 +13,6 @@ const cron = require("node-cron");
 const nodemailer = require("nodemailer");
 const moment = require("moment-timezone");
 const OpenAI = require('openai');
-const sgMail = require('@sendgrid/mail');
-const { Op } = require("sequelize");
-
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -138,7 +133,7 @@ exports.RunCampaign = catchAsyncError(async (req, res, next) => {
     const schedules = await ScheduleModel.findOne({ where: { CampaignId: campaign.id } });
     const leads = await LeadModel.findAll({ where: { CampaignId: campaign.id } });
 
-    const mailAccounts = ['account1@gmail.com','account2@gmail.com','account3@gmail.com','account4@gmail.com','account5@gmail.com'];
+    const mailAccounts = ['account1@gmail.com', 'account2@gmail.com', 'account3@gmail.com', 'account4@gmail.com', 'account5@gmail.com'];
 
     if (!sequences || sequences.length === 0) return next(new ErrorHandler("Sequence not found", 404));
     if (!schedules || schedules.length === 0) return next(new ErrorHandler("Schedules not found", 404));
@@ -152,13 +147,13 @@ exports.RunCampaign = catchAsyncError(async (req, res, next) => {
     for (const lead of leads) {
         if (!lead.Responded) {
             if (lead.CampaignStep < emails.length) {
-                
+
                 if (lead.CampaignStep === 0) {
                     const sendingEmail = emails[lead.CampaignStep];
                     const emailAccount = mailAccounts[Math.floor(Math.random() * mailAccounts.length)];
                     const sendingSchedule = schedules.Schedule[Math.floor(Math.random() * schedules.Schedule.length)];
-                    const sendingTime = getRandomSendingTime(sendingSchedule , 0);
-                    
+                    const sendingTime = getRandomSendingTime(sendingSchedule, 0);
+
                     Plan.push({
                         Receiver: lead.Email,
                         EmailAccount: emailAccount,
@@ -167,7 +162,7 @@ exports.RunCampaign = catchAsyncError(async (req, res, next) => {
                         Body: sendingEmail.Body,
                     });
                     // cron job to send email with updating lastinteraction and step (with condition for if exists)
-                    
+
                     lead.CommunicationEmail = emailAccount;
                     lead.SendingSchedule = sendingSchedule;
                     await lead.save();
@@ -175,10 +170,10 @@ exports.RunCampaign = catchAsyncError(async (req, res, next) => {
                     const sendingEmail = emails[lead.CampaignStep];
                     const emailAccount = lead.CommunicationEmail;
                     const sendingSchedule = lead.SendingSchedule;
-                    const sendingTime = getRandomSendingTime(sendingSchedule , emails[lead.CampaignStep -1].Delay);
-                    
+                    const sendingTime = getRandomSendingTime(sendingSchedule, emails[lead.CampaignStep - 1].Delay);
+
                     // cron job to send email with updating lastinteraction, step (with condition for if exists), and if has responded or not
-                    
+
                     Plan.push({
                         Receiver: lead.Email,
                         EmailAccount: emailAccount,
@@ -190,7 +185,7 @@ exports.RunCampaign = catchAsyncError(async (req, res, next) => {
             }
         }
     }
-    
+
     // run cron job to call this api again
 
     res.status(200).json({
@@ -238,7 +233,7 @@ exports.GetCampaignSequence = catchAsyncError(async (req, res, next) => {
 
 exports.UpdateCampaignSequence = catchAsyncError(async (req, res, next) => {
     const { Emails } = req.body;
-    
+
     const campaign = req.campaign;
 
     const sequence = await SequenceModel.findOne({
@@ -679,7 +674,7 @@ Make sure to use a variety of timezones and days to make the schedule look natur
     });
 });
 
-exports.GetAllTimezones = catchAsyncError(async (req , res , next) => {
+exports.GetAllTimezones = catchAsyncError(async (req, res, next) => {
     const timezones = moment.tz.names();
 
     res.status(200).json({
@@ -687,24 +682,4 @@ exports.GetAllTimezones = catchAsyncError(async (req , res , next) => {
         message: "Timezones found successfully",
         timezones,
     });
-});
-
-/* Testing APIs */
-
-exports.SendGoogleMail = catchAsyncError(async (req , res , next) => {
-    const { ReceiverEmail , Subject , Body } = req.body;
-
-    const EmailAccount = await EmailAccountModel.findOne({
-        where: {
-            WorkspaceId: req.user.User.CurrentWorkspaceId,
-            Provider: "Google",
-        },
-    });
-
-    if (!EmailAccount) {
-        return next(new ErrorHandler("No Google Email account found", 404));
-    }
-
-    
-
 });

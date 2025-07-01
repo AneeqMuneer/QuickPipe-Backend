@@ -2099,14 +2099,14 @@ exports.Sendgrid = catchAsyncError(async (req, res, next) => {
     // 1. Email to receive1@gmail.com — workspace1, campaign1, from send1@gmail.com
     messages.push({
         personalizations: [{
-            to: [{ email: "aneeq.muneer03@gmail.com", name: "Aneeq Muneer" }],
+            to: [{ email: "ahadaziz4@gmail.com", name: "Aneeq Muneer" }],
             subject: "Test Campaign Email",
             custom_args: {
                 workspaceId: "workspace1",
                 campaignId: "campaign1",
                 senderEmail: "aneeq@quickpipe.xyz",
                 receiverName: "Aneeq Muneer",
-                receiverEmail: "aneeq.muneer03@gmail.com"
+                receiverEmail: "ahadaziz4@gmail.com"
             },
             categories: ["workspace1", "campaign1", "aneeq@quickpipe.xyz"]
         }],
@@ -2115,7 +2115,7 @@ exports.Sendgrid = catchAsyncError(async (req, res, next) => {
             type: "text/html",
             value: `<strong>Hello!</strong><br/>
   This email is part of <em>workspace1</em>, campaign1, sent from aneeq@quickpipe.xyz.<br/><br/>
-  <a href="https://example.com/test-link?user=aneeq.muneer03@gmail.com" target="_blank">Click here to test tracking</a><br/><br/>
+  <a href="https://example.com/test-link?user=ahadaziz4@gmail.com" target="_blank">Click here to test tracking</a><br/><br/>
   Thanks!<br/>
   — Aneeq`
         }],
@@ -2128,14 +2128,14 @@ exports.Sendgrid = catchAsyncError(async (req, res, next) => {
     // 2. Email to receive2@gmail.com — workspace1, campaign2, from send2@gmail.com
     messages.push({
         personalizations: [{
-            to: [{ email: "arhammuneer31@gmail.com", name: "Arham Muneer" }],
+            to: [{ email: "ahad.aziz.jaffer@gmail.com", name: "Arham Muneer" }],
             subject: "Test Campaign Email",
             custom_args: {
                 workspaceId: "workspace1",
                 campaignId: "campaign2",
                 senderEmail: "arham@quickpipe.xyz",
                 receiverName: "Arham Muneer",
-                receiverEmail: "arhammuneer31@gmail.com"
+                receiverEmail: "ahad.aziz.jaffer@gmail.com"
             },
             categories: ["workspace1", "campaign2", "arham@quickpipe.xyz"]
         }],
@@ -2144,7 +2144,7 @@ exports.Sendgrid = catchAsyncError(async (req, res, next) => {
             type: "text/html",
             value: `<strong>Hello!</strong><br/>
   This email is part of <em>workspace1</em>, campaign2, sent from arham@quickpipe.xyz.<br/><br/>
-  <a href="https://example.com/test-link?user=arhammuneer31@gmail.com" target="_blank">Click here to test tracking</a><br/><br/>
+  <a href="https://example.com/test-link?user=ahad.aziz.jaffer@gmail.com" target="_blank">Click here to test tracking</a><br/><br/>
   Thanks!<br/>
   — Aneeq`
         }],
@@ -2220,15 +2220,17 @@ exports.Sendgrid1 = catchAsyncError(async (req, res, next) => {
 });
 
 exports.Sendgrid2 = catchAsyncError(async (req, res, next) => {
-    const startDate = "2025-01-01";
-    const endDate = "2025-06-01";
+    // get current year and then start and end date should be the first and last day of the year
+    const currentYear = new Date().getFullYear();
+    const startDate = `${currentYear}-01-01`;
+    const endDate = `${currentYear}-12-31`;
     const workspaceId = "workspace1";
     const campaignId = "campaign1";
 
     console.log(`Querying SendGrid stats for date: ${startDate}`);
     console.log(`Categories being queried: ${workspaceId}, ${campaignId}`);
 
-    const url = `https://api.sendgrid.com/v3/categories/stats?start_date=${startDate}&end_date=${endDate}&categories=${workspaceId}&aggregated_by=month`;
+    const url = `https://api.sendgrid.com/v3/categories/stats?start_date=${startDate}&end_date=${endDate}&categories=${workspaceId}&aggregated_by=day`;
 
     const headers = {
         Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
@@ -2319,28 +2321,33 @@ exports.Sendgrid3 = catchAsyncError(async (req, res, next) => {
 
 exports.SendgridWebhook = catchAsyncError(async (req, res, next) => {
     const events = Array.isArray(req.body) ? req.body : [];
+    console.log("here");
+    const io = req.app.get('io');
 
-    events
-        .forEach(evt => {
-            try {
-                const workspaceId = evt.workspaceId || 'N/A';
-                const campaignId = evt.campaignId || 'N/A';
-                const receiverName = evt.receiverName || '';
-                const url = evt.url || '';
-                const response = evt.response || '';
-                const timestamp = evt.timestamp ? new Date(evt.timestamp * 1000).toLocaleString() : 'N/A';
+    events.forEach(evt => {
+        try {
+            const workspaceId = evt.workspaceId || null;
+            if (!workspaceId) return;
 
-                console.log(
-                    `➤ Workspace: ${workspaceId} | Campaign: ${campaignId} | Event: ${evt.event} | email: ${evt.email}` +
-                    (receiverName ? ` | name: ${receiverName}` : '') +
-                    (url ? ` | url: ${url}` : '') +
-                    (response ? ` | response: ${response}` : '') +
-                    ` | time: ${timestamp}`
-                );
-            } catch (err) {
-                console.error('Error processing Sendgrid event:', err, evt);
-            }
-        });
+            const payload = {
+                workspaceId,
+                campaignId: evt.campaignId || 'N/A',
+                receiverName: evt.receiverName || '',
+                receiverEmail: evt.receiverEmail || '',
+                url: evt.url || '',
+                response: evt.response || '',
+                event: evt.event,
+                timestamp: evt.timestamp ? new Date(evt.timestamp * 1000).toLocaleString() : 'N/A'
+            };
+
+            io.to(`Workspace_${workspaceId}`).emit('sendgrid_event', payload);
+
+            console.log(`Emitted event to Workspace_${workspaceId}:`, payload);
+
+        } catch (err) {
+            console.error('Error processing Sendgrid event:', err, evt);
+        }
+    });
 
     res.status(200).send('OK');
 });

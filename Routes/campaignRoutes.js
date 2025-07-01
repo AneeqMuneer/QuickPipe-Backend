@@ -6,8 +6,7 @@ const {
     GetCampaignSequence , UpdateCampaignSequence , GetCampaignSchedule , 
     UpdateCampaignSchedule , SendCampaignMail , GenerateAIEmail , 
     GenerateAISequence , ActivePauseCampaign , GenerateAISchedule ,
-    RunCampaign , GetAllTimezones , CreateTemplate , GetAllTemplates,
-    SendGoogleMail
+    RunCampaign , GetAllTimezones , CreateTemplate , GetAllTemplates
 } = require("../Controller/campaignController");
 const { VerifyUser } = require("../Middleware/userAuth");
 const { VerifyCampaign } = require("../Middleware/campaignAuth");
@@ -34,7 +33,5 @@ router.route("/GetCampaignSchedule/:campaignid/schedule").get(VerifyUser , Verif
 router.route("/UpdateCampaignSchedule/:campaignid/schedule").put(VerifyUser , VerifyCampaign , UpdateCampaignSchedule);
 router.route("/GenerateAISchedule/:campaignid/schedule").post(VerifyUser , VerifyCampaign , GenerateAISchedule);
 router.route("/GetAllTimezones").get(GetAllTimezones);
-
-router.route("/SendGoogleMail").post(VerifyUser , SendGoogleMail);
 
 module.exports = router;

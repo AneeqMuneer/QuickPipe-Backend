@@ -29,9 +29,9 @@ const Lead = sequelize.define(
       allowNull: true
     },
     Status: {
-      type: DataTypes.ENUM("Discovery", "Evaluation", "Proposal", "Negotiation", "Commit", "Closed"),
+      type: DataTypes.ENUM("New" , "Discovery", "Evaluation", "Proposal", "Negotiation", "Commit", "Closed Won", "Closed Lost"),
       allowNull: false,
-      defaultValue: "Discovery"
+      defaultValue: "New"
     },
     CampaignId: {
       type: DataTypes.UUID,

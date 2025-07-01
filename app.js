@@ -54,22 +54,24 @@ const coldCallRoutes = require("./Routes/coldCallRoutes");
 const businessRoutes = require("./Routes/businessRoutes");
 const callRoutes = require('./Routes/callRoutes');
 const meetingRoutes = require('./Routes/meetingRoutes');
+const analyticsRoutes = require('./Routes/analyticsRoutes');
 
+app.use("/analytics", analyticsRoutes);
+app.use("/business", businessRoutes);
+app.use("/calendar", CalendarRoutes);
+app.use('/calls', callRoutes);
+app.use('/campaign', campaignRoutes);
+app.use('/coldCall', coldCallRoutes);
+app.use('/EmailAccount', emailAccountRoutes);
+app.use("/help", helpRoutes);
+app.use("/integration", apiRoutes);
+app.use('/lead', leadRoutes);
+app.use('/meetings', meetingRoutes);
+app.use("/member", MemberRoutes);
+app.use('/tasks', taskRoutes);
 app.use("/user", UserRoutes);
 app.use("/workspace", WorkspaceRoutes);
 app.use("/zoom", ZoomRoutes);
-app.use("/calendar", CalendarRoutes);
-app.use("/member", MemberRoutes);
-app.use('/lead', leadRoutes);
-app.use('/campaign', campaignRoutes);
-app.use("/integration", apiRoutes);
-app.use("/help", helpRoutes);
-app.use('/tasks', taskRoutes);
-app.use('/EmailAccount', emailAccountRoutes);
-app.use('/coldCall', coldCallRoutes);
-app.use("/business", businessRoutes);
-app.use('/calls', callRoutes);
-app.use('/meetings', meetingRoutes);
 
 // Render payment page
 app.get('/payment', (req, res) => {
