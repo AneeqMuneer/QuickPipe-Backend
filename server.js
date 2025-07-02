@@ -28,8 +28,8 @@ io.on("connection", (socket) => {
 
     // Client joins a room (workspace-based)
     socket.on("joinWorkspace", (workspaceId) => {
-        socket.join(`workspace-${workspaceId}`);
-        console.log(`Socket ${socket.id} joined workspace-${workspaceId}`);
+        socket.join(`Workspace_${workspaceId}`);
+        console.log(`Socket ${socket.id} joined Workspace_${workspaceId}`);
     });
 
     socket.on("disconnect", () => {

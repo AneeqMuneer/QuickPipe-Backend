@@ -2327,12 +2327,13 @@ exports.Sendgrid3 = catchAsyncError(async (req, res, next) => {
 
 exports.SendgridWebhook = catchAsyncError(async (req, res, next) => {
     const events = Array.isArray(req.body) ? req.body : [];
-    
+
     const io = req.app.get('io');
-    
+
     events.forEach(evt => {
         try {
             const workspaceId = evt.workspaceId || null;
+            console.log("Workspace id from email: ", workspaceId);
             if (!workspaceId) return;
 
             const payload = {
@@ -2347,9 +2348,16 @@ exports.SendgridWebhook = catchAsyncError(async (req, res, next) => {
                 timestamp: evt.timestamp ? new Date(evt.timestamp * 1000).toLocaleString() : ''
             };
 
-            io.to(`Workspace_${workspaceId}`).emit('sendgrid_event', payload);
+            const roomName = `Workspace_${workspaceId}`;
+            const clients = io.sockets.adapter.rooms.get(roomName);
 
-            console.log(`Emitted "${evt.event}" event from email address ${evt.receiverEmail} to "Workspace_${workspaceId}":`, payload);
+            if (!clients || clients.size === 0) {
+                console.error(`No clients connected to room: ${roomName}`);
+                return; // Exit if no clients are connected to the workspace room
+            }
+
+            io.to(roomName).emit('sendgrid_event', payload);
+            console.log(`Emitted "${evt.event}" event from email address ${evt.receiverEmail} room ${roomName}":, payload`);
 
         } catch (err) {
             console.error('Error processing Sendgrid event:', err, evt);
