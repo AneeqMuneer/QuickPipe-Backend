@@ -1,9 +1,10 @@
 const express = require("express");
-const { GetWorkspaceAnalyticsQuarterly , GetWorkspaceAnalyticsYearly } = require("../Controller/analyticsController");
+const { GetWorkspaceAnalyticsMonthly , GetWorkspaceAnalyticsQuarterly , GetWorkspaceAnalyticsYearly } = require("../Controller/analyticsController");
 const { VerifyUser } = require("../Middleware/userAuth");
 
 const router = express.Router();
 
+router.route("/GetWorkspaceAnalyticsMonthly").get(VerifyUser, GetWorkspaceAnalyticsMonthly);
 router.route("/GetWorkspaceAnalyticsQuarterly").get(VerifyUser, GetWorkspaceAnalyticsQuarterly);
 router.route("/GetWorkspaceAnalyticsYearly").get(VerifyUser, GetWorkspaceAnalyticsYearly);
 

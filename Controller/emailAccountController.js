@@ -2102,7 +2102,7 @@ exports.Sendgrid = catchAsyncError(async (req, res, next) => {
             to: [{ email: "ahadaziz4@gmail.com", name: "Aneeq Muneer" }],
             subject: "Test Campaign Email",
             custom_args: {
-                workspaceId: "workspace1",
+                workspaceId: "cee2cb46-9bc0-4819-9dbf-bdcd35e879f5",
                 campaignId: "campaign1",
                 senderEmail: "aneeq@quickpipe.xyz",
                 receiverName: "Aneeq Muneer",
@@ -2131,7 +2131,7 @@ exports.Sendgrid = catchAsyncError(async (req, res, next) => {
             to: [{ email: "ahad.aziz.jaffer@gmail.com", name: "Arham Muneer" }],
             subject: "Test Campaign Email",
             custom_args: {
-                workspaceId: "workspace1",
+                workspaceId: "cee2cb46-9bc0-4819-9dbf-bdcd35e879f5",
                 campaignId: "campaign2",
                 senderEmail: "arham@quickpipe.xyz",
                 receiverName: "Arham Muneer",
@@ -2160,7 +2160,7 @@ exports.Sendgrid = catchAsyncError(async (req, res, next) => {
             to: [{ email: "yourdadpro999@gmail.com", name: "Your Dad" }],
             subject: "Test Campaign Email",
             custom_args: {
-                workspaceId: "workspace2",
+                workspaceId: "cee2cb46-9bc0-4819-9dbf-bdcd35e879f5",
                 campaignId: "campaign1",
                 senderEmail: "aneeq@quickpipe.xyz",
                 receiverName: "Your Dad",
@@ -2342,7 +2342,7 @@ exports.SendgridWebhook = catchAsyncError(async (req, res, next) => {
 
             io.to(`Workspace_${workspaceId}`).emit('sendgrid_event', payload);
 
-            console.log(`Emitted ${evt.event} event from email address ${evt.receiverEmail} to Workspace_${workspaceId}:`, payload);
+            console.log(`Emitted "${evt.event}" event from email address ${evt.receiverEmail} to "Workspace_${workspaceId}":`, payload);
 
         } catch (err) {
             console.error('Error processing Sendgrid event:', err, evt);
