@@ -2342,7 +2342,7 @@ exports.SendgridWebhook = catchAsyncError(async (req, res, next) => {
 
             io.to(`Workspace_${workspaceId}`).emit('sendgrid_event', payload);
 
-            console.log(`Emitted event to Workspace_${workspaceId}:`, payload);
+            console.log(`Emitted ${evt.event} event from email address ${evt.receiverEmail} to Workspace_${workspaceId}:`, payload);
 
         } catch (err) {
             console.error('Error processing Sendgrid event:', err, evt);
