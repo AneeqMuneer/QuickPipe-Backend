@@ -2096,25 +2096,27 @@ exports.Sendgrid = catchAsyncError(async (req, res, next) => {
 
     const messages = [];
 
-    // 1. Email to receive1@gmail.com — workspace1, campaign1, from send1@gmail.com
+    // 1. Email to receive1@gmail.com — Aneeq's Workspace, Abdul Ahad Campaign, from send1@gmail.com
     messages.push({
         personalizations: [{
             to: [{ email: "ahadaziz4@gmail.com", name: "Aneeq Muneer" }],
             subject: "Test Campaign Email",
             custom_args: {
+                workspaceName: "Aneeq's Workspace",
                 workspaceId: "cee2cb46-9bc0-4819-9dbf-bdcd35e879f5",
-                campaignId: "campaign1",
+                campaignName: "Abdul Ahad Campaign",
+                campaignId: "418dd32d-070e-4a35-848a-2891930eddd8",
                 senderEmail: "aneeq@quickpipe.xyz",
                 receiverName: "Aneeq Muneer",
                 receiverEmail: "ahadaziz4@gmail.com"
             },
-            categories: ["workspace1", "campaign1", "aneeq@quickpipe.xyz"]
+            categories: ["Workspace_cee2cb46-9bc0-4819-9dbf-bdcd35e879f5", "Campaign_418dd32d-070e-4a35-848a-2891930eddd8", "aneeq@quickpipe.xyz"]
         }],
         from: { email: "aneeq@quickpipe.xyz" },
         content: [{
             type: "text/html",
             value: `<strong>Hello!</strong><br/>
-  This email is part of <em>workspace1</em>, campaign1, sent from aneeq@quickpipe.xyz.<br/><br/>
+  This email is part of <em>Aneeq's Workspace</em>, Abdul Ahad Campaign, sent from aneeq@quickpipe.xyz.<br/><br/>
   <a href="https://example.com/test-link?user=ahadaziz4@gmail.com" target="_blank">Click here to test tracking</a><br/><br/>
   Thanks!<br/>
   — Aneeq`
@@ -2125,25 +2127,27 @@ exports.Sendgrid = catchAsyncError(async (req, res, next) => {
         }
     });
 
-    // 2. Email to receive2@gmail.com — workspace1, campaign2, from send2@gmail.com
+    // 2. Email to receive2@gmail.com — Aneeq's Workspace, Beetu Campaign, from send2@gmail.com
     messages.push({
         personalizations: [{
             to: [{ email: "ahad.aziz.jaffer@gmail.com", name: "Arham Muneer" }],
             subject: "Test Campaign Email",
             custom_args: {
+                workspaceName: "Aneeq's Workspace",
                 workspaceId: "cee2cb46-9bc0-4819-9dbf-bdcd35e879f5",
-                campaignId: "campaign2",
+                campaignName: "Beetu Campaign",
+                campaignId: "02ffa111-46fb-465e-b623-9c1987bf23d6",
                 senderEmail: "arham@quickpipe.xyz",
                 receiverName: "Arham Muneer",
                 receiverEmail: "ahad.aziz.jaffer@gmail.com"
             },
-            categories: ["workspace1", "campaign2", "arham@quickpipe.xyz"]
+            categories: ["Workspace_cee2cb46-9bc0-4819-9dbf-bdcd35e879f5", "Campaign_02ffa111-46fb-465e-b623-9c1987bf23d6", "arham@quickpipe.xyz"]
         }],
         from: { email: "arham@quickpipe.xyz" },
         content: [{
             type: "text/html",
             value: `<strong>Hello!</strong><br/>
-  This email is part of <em>workspace1</em>, campaign2, sent from arham@quickpipe.xyz.<br/><br/>
+  This email is part of <em>Aneeq's Workspace</em>, Beetu Campaign, sent from arham@quickpipe.xyz.<br/><br/>
   <a href="https://example.com/test-link?user=ahad.aziz.jaffer@gmail.com" target="_blank">Click here to test tracking</a><br/><br/>
   Thanks!<br/>
   — Aneeq`
@@ -2154,25 +2158,27 @@ exports.Sendgrid = catchAsyncError(async (req, res, next) => {
         }
     });
 
-    // 3. Email to receive3@gmail.com — workspace2, campaign1, from send1@gmail.com
+    // 3. Email to receive3@gmail.com — Aneeq's Workspace, Beetu Campaign, from send1@gmail.com
     messages.push({
         personalizations: [{
             to: [{ email: "yourdadpro999@gmail.com", name: "Your Dad" }],
             subject: "Test Campaign Email",
             custom_args: {
+                workspaceName: "Aneeq's Workspace",
                 workspaceId: "cee2cb46-9bc0-4819-9dbf-bdcd35e879f5",
-                campaignId: "campaign1",
+                campaignName: "Beetu Campaign",
+                campaignId: "02ffa111-46fb-465e-b623-9c1987bf23d6",
                 senderEmail: "aneeq@quickpipe.xyz",
                 receiverName: "Your Dad",
                 receiverEmail: "yourdadpro999@gmail.com"
             },
-            categories: ["workspace2", "campaign1", "aneeq@quickpipe.xyz"]
+            categories: ["Workspace_cee2cb46-9bc0-4819-9dbf-bdcd35e879f5", "Campaign_02ffa111-46fb-465e-b623-9c1987bf23d6", "aneeq@quickpipe.xyz"]
         }],
         from: { email: "aneeq@quickpipe.xyz" },
         content: [{
             type: "text/html",
             value: `<strong>Hello!</strong><br/>
-  This email is part of <em>workspace2</em>, campaign1, sent from aneeq@quickpipe.xyz.<br/><br/>
+  This email is part of <em>Aneeq's Workspace</em>, Beetu Campaign, sent from aneeq@quickpipe.xyz.<br/><br/>
   <a href="https://example.com/test-link?user=yourdadpro999@gmail.com" target="_blank">Click here
   Thanks!<br/>
   — Aneeq`
@@ -2321,9 +2327,9 @@ exports.Sendgrid3 = catchAsyncError(async (req, res, next) => {
 
 exports.SendgridWebhook = catchAsyncError(async (req, res, next) => {
     const events = Array.isArray(req.body) ? req.body : [];
-    console.log("here");
+    
     const io = req.app.get('io');
-
+    
     events.forEach(evt => {
         try {
             const workspaceId = evt.workspaceId || null;
@@ -2331,13 +2337,14 @@ exports.SendgridWebhook = catchAsyncError(async (req, res, next) => {
 
             const payload = {
                 workspaceId,
-                campaignId: evt.campaignId || 'N/A',
-                receiverName: evt.receiverName || '',
-                receiverEmail: evt.receiverEmail || '',
+                workspaceName: evt.workspaceName,
+                campaignId: evt.campaignId,
+                campaignName: evt.campaignName,
+                receiverName: evt.receiverName,
+                receiverEmail: evt.receiverEmail,
                 url: evt.url || '',
-                response: evt.response || '',
                 event: evt.event,
-                timestamp: evt.timestamp ? new Date(evt.timestamp * 1000).toLocaleString() : 'N/A'
+                timestamp: evt.timestamp ? new Date(evt.timestamp * 1000).toLocaleString() : ''
             };
 
             io.to(`Workspace_${workspaceId}`).emit('sendgrid_event', payload);
