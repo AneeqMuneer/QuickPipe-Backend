@@ -163,16 +163,15 @@ exports.AddDocumentData = catchAsyncError(async (req, res, next) => {
     if (!Business) {
         return next(new ErrorHandler("Business not found", 404));
     }
-    console.log(Business);
+
     let RetainedFiles = [];
-    if (KeepFiles && KeepFiles.length > 0 && Array.isArray(KeepFiles)) {
-        console.log("retaining files")
-        let SavedFiles = Array.isArray(Business.DocumentData) ? Business.DocumentData : [];
-        console.log(SavedFiles);
-        RetainedFiles = SavedFiles.filter(file => KeepFiles.includes(file.Name));
+    let ExistingFiles = Array.isArray(Business.DocumentData) ? Business.DocumentData : [];
+
+    if (KeepFiles && Array.isArray(KeepFiles)) {
+        RetainedFiles = ExistingFiles.filter(file => KeepFiles.includes(file.Name));
     }
 
-    const DocumentData = [];
+    const SavedFiles = [];
     const UnsavedFiles = [];
 
     if (!req.files) {
@@ -180,7 +179,6 @@ exports.AddDocumentData = catchAsyncError(async (req, res, next) => {
     }
 
     for (const file of req.files) {
-        console.log("adding new files");
         try {
             let rawText = "";
 
@@ -193,7 +191,7 @@ exports.AddDocumentData = catchAsyncError(async (req, res, next) => {
             }
 
             const cleanedText = CleanExtractedText(rawText);
-            DocumentData.push({ Name: file.originalname, Data: cleanedText });
+            SavedFiles.push({ Name: file.originalname, Data: cleanedText });
 
         } catch (error) {
             console.error(`Error extracting text from ${file.originalname}:`, error);
@@ -201,15 +199,22 @@ exports.AddDocumentData = catchAsyncError(async (req, res, next) => {
         }
     }
 
-    Business.DocumentData = [...RetainedFiles, ...DocumentData];
+    Business.DocumentData = [...RetainedFiles, ...SavedFiles];
 
     await Business.save();
+
+    console.log("Existing Files", ExistingFiles.map(file => file.Name));
+    console.log("Keep Files", KeepFiles);
+    console.log("Uploaded Files", req.files.map(file => file.originalname));
+    console.log("Retained Files", RetainedFiles.map(file => file.Name));
+    console.log("Saved Files", SavedFiles.map(file => file.Name));
+    console.log("Unsaved Files", UnsavedFiles.map(file => file.Name));
+    console.log("Removed Files", ExistingFiles.filter(file => !RetainedFiles.includes(file)).map(file => file.Name));
+    console.log("Business Documents", Business.DocumentData.map(file => file.Name));
 
     res.status(200).json({
         success: true,
         message: "Document data added successfully",
-        UnsavedFiles,
-        RetainedFiles,
-        BusinessDocumentData: Business.DocumentData
+        UnsavedFiles
     });
 });

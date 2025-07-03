@@ -82,11 +82,8 @@ Lead Outreach
     d. Identify and create task from replies
 
 10. Extras
-    a. Business APIs
-    b. user authentication
-    c. ahad merge work
-    d. live feed socket
-    e. analytics api issues
+    a. ahad merge work
+    b. live feed socket
 
 
 
