@@ -156,10 +156,6 @@ exports.AddDocumentData = catchAsyncError(async (req, res, next) => {
     const { KeepFiles } = req.body;
     const { CurrentWorkspaceId } = req.user.User;
 
-    if (!req.files) {
-        req.files = [];
-    }
-
     const Business = await BusinessModel.findOne({
         where: { WorkspaceId: CurrentWorkspaceId }
     });
@@ -167,19 +163,24 @@ exports.AddDocumentData = catchAsyncError(async (req, res, next) => {
     if (!Business) {
         return next(new ErrorHandler("Business not found", 404));
     }
-
-    let KeptFiles = [];
-    if (KeepFiles && KeepFiles.length > 0) {
+    console.log(Business);
+    let RetainedFiles = [];
+    if (KeepFiles && KeepFiles.length > 0 && Array.isArray(KeepFiles)) {
+        console.log("retaining files")
         let SavedFiles = Array.isArray(Business.DocumentData) ? Business.DocumentData : [];
-        if (Array.isArray(KeepFiles) && KeepFiles.length > 0) {
-            KeptFiles = SavedFiles.filter(file => KeepFiles.includes(file.Name));
-        }
+        console.log(SavedFiles);
+        RetainedFiles = SavedFiles.filter(file => KeepFiles.includes(file.Name));
     }
 
     const DocumentData = [];
     const UnsavedFiles = [];
 
+    if (!req.files) {
+        req.files = [];
+    }
+
     for (const file of req.files) {
+        console.log("adding new files");
         try {
             let rawText = "";
 
@@ -200,13 +201,15 @@ exports.AddDocumentData = catchAsyncError(async (req, res, next) => {
         }
     }
 
-    Business.DocumentData = [...KeptFiles, ...DocumentData];
+    Business.DocumentData = [...RetainedFiles, ...DocumentData];
 
     await Business.save();
 
     res.status(200).json({
         success: true,
         message: "Document data added successfully",
-        UnsavedFiles
+        UnsavedFiles,
+        RetainedFiles,
+        BusinessDocumentData: Business.DocumentData
     });
 });
