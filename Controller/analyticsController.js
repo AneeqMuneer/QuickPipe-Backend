@@ -37,20 +37,36 @@ exports.GetWorkspaceAnalyticsMonthly = catchAsyncError(async (req, res, next) =>
         stats.forEach(stat => {
             const { date, stats: statistics } = stat;
 
-            const { delivered, unique_opens, unique_clicks } = statistics[0].metrics;
+            const { delivered, unique_opens, unique_clicks, opens, clicks } = statistics[0].metrics;
 
             MonthlyStatistics.push({
                 Date: parseInt(date.split("-")[2]),
                 Delivered: delivered,
-                Opens: unique_opens,
-                Clicks: unique_clicks
+                UniqueOpens: unique_opens,
+                UniqueClicks: unique_clicks,
+                Opens: opens,
+                Clicks: clicks
             });
         });
+
+        const TotalDelivered = MonthlyStatistics.reduce((acc, curr) => acc + curr.Delivered, 0);
+        const TotalUniqueOpens = MonthlyStatistics.reduce((acc, curr) => acc + curr.UniqueOpens, 0);
+        const TotalUniqueClicks = MonthlyStatistics.reduce((acc, curr) => acc + curr.UniqueClicks, 0);
+
+        const OpenRate = (TotalUniqueOpens / TotalDelivered) * 100;
+        const ClickRate = (TotalUniqueClicks / TotalDelivered) * 100;
 
         res.status(200).json({
             success: true,
             message: "Monthly statistics fetched successfully",
-            MonthlyStatistics
+            Statistics: {
+                Graph: MonthlyStatistics,
+                OpenRate: isNaN(OpenRate) ? 0 : parseFloat(OpenRate.toFixed(2)),
+                ClickRate: isNaN(ClickRate) ? 0 : parseFloat(ClickRate.toFixed(2)),
+                SequenceStarted: 0,
+                Opportunities: 0,
+                Conversions: 0
+            }
         });
     } catch (error) {
         console.error("SendGrid API Error:", error);
@@ -91,28 +107,44 @@ exports.GetWorkspaceAnalyticsQuarterly = catchAsyncError(async (req, res, next) 
         const { data: stats } = await axios.get(url, { headers });
 
         const QuarterlyStatistics = [
-            { Quarter: 1, Delivered: 0, Opens: 0, Clicks: 0 },
-            { Quarter: 2, Delivered: 0, Opens: 0, Clicks: 0 },
-            { Quarter: 3, Delivered: 0, Opens: 0, Clicks: 0 },
-            { Quarter: 4, Delivered: 0, Opens: 0, Clicks: 0 }
+            { Quarter: 1, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
+            { Quarter: 2, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
+            { Quarter: 3, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
+            { Quarter: 4, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 }
         ];
 
         stats.forEach(stat => {
             const { date, stats: statistics } = stat;
 
-            const { delivered, unique_opens, unique_clicks } = statistics[0].metrics;
+            const { delivered, unique_opens, unique_clicks, opens, clicks } = statistics[0].metrics;
 
             const quarter = Math.ceil((new Date(date).getMonth() + 1) / 3) - 1;
 
             QuarterlyStatistics[quarter].Delivered += delivered;
-            QuarterlyStatistics[quarter].Opens += unique_opens;
-            QuarterlyStatistics[quarter].Clicks += unique_clicks;
+            QuarterlyStatistics[quarter].UniqueOpens += unique_opens;
+            QuarterlyStatistics[quarter].UniqueClicks += unique_clicks;
+            QuarterlyStatistics[quarter].Opens += opens;
+            QuarterlyStatistics[quarter].Clicks += clicks;
         });
+
+        const TotalDelivered = QuarterlyStatistics.reduce((acc, curr) => acc + curr.Delivered, 0);
+        const TotalUniqueOpens = QuarterlyStatistics.reduce((acc, curr) => acc + curr.UniqueOpens, 0);
+        const TotalUniqueClicks = QuarterlyStatistics.reduce((acc, curr) => acc + curr.UniqueClicks, 0);
+
+        const OpenRate = (TotalUniqueOpens / TotalDelivered) * 100;
+        const ClickRate = (TotalUniqueClicks / TotalDelivered) * 100;
 
         res.status(200).json({
             success: true,
             message: "Quarterly statistics fetched successfully",
-            QuarterlyStatistics
+            Statistics: {
+                Graph: QuarterlyStatistics,
+                OpenRate: isNaN(OpenRate) ? 0 : parseFloat(OpenRate.toFixed(2)),
+                ClickRate: isNaN(ClickRate) ? 0 : parseFloat(ClickRate.toFixed(2)),
+                SequenceStarted: 0,
+                Opportunities: 0,
+                Conversions: 0
+            }
         });
     } catch (error) {
         console.error("SendGrid API Error:", error);
@@ -153,36 +185,52 @@ exports.GetWorkspaceAnalyticsYearly = catchAsyncError(async (req, res, next) => 
         const { data: stats } = await axios.get(url, { headers });
 
         const YearlyStatistics = [
-            { Month: 1, Delivered: 0, Opens: 0, Clicks: 0 },
-            { Month: 2, Delivered: 0, Opens: 0, Clicks: 0 },
-            { Month: 3, Delivered: 0, Opens: 0, Clicks: 0 },
-            { Month: 4, Delivered: 0, Opens: 0, Clicks: 0 },
-            { Month: 5, Delivered: 0, Opens: 0, Clicks: 0 },
-            { Month: 6, Delivered: 0, Opens: 0, Clicks: 0 },
-            { Month: 7, Delivered: 0, Opens: 0, Clicks: 0 },
-            { Month: 8, Delivered: 0, Opens: 0, Clicks: 0 },
-            { Month: 9, Delivered: 0, Opens: 0, Clicks: 0 },
-            { Month: 10, Delivered: 0, Opens: 0, Clicks: 0 },
-            { Month: 11, Delivered: 0, Opens: 0, Clicks: 0 },
-            { Month: 12, Delivered: 0, Opens: 0, Clicks: 0 }
+            { Month: 1, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
+            { Month: 2, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
+            { Month: 3, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
+            { Month: 4, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
+            { Month: 5, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
+            { Month: 6, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
+            { Month: 7, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
+            { Month: 8, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
+            { Month: 9, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
+            { Month: 10, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
+            { Month: 11, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
+            { Month: 12, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 }
         ];
 
         stats.forEach(stat => {
             const { date, stats: statistics } = stat;
 
-            const { delivered, unique_opens, unique_clicks } = statistics[0].metrics;
+            const { delivered, unique_opens, unique_clicks, opens, clicks } = statistics[0].metrics;
 
             const month = new Date(date).getMonth();
 
             YearlyStatistics[month].Delivered += delivered;
-            YearlyStatistics[month].Opens += unique_opens;
-            YearlyStatistics[month].Clicks += unique_clicks;
+            YearlyStatistics[month].UniqueOpens += unique_opens;
+            YearlyStatistics[month].UniqueClicks += unique_clicks;
+            YearlyStatistics[month].Opens += opens;
+            YearlyStatistics[month].Clicks += clicks;
         });
+
+        const TotalDelivered = YearlyStatistics.reduce((acc, curr) => acc + curr.Delivered, 0);
+        const TotalUniqueOpens = YearlyStatistics.reduce((acc, curr) => acc + curr.UniqueOpens, 0);
+        const TotalUniqueClicks = YearlyStatistics.reduce((acc, curr) => acc + curr.UniqueClicks, 0);
+
+        const OpenRate = (TotalUniqueOpens / TotalDelivered) * 100;
+        const ClickRate = (TotalUniqueClicks / TotalDelivered) * 100;
 
         res.status(200).json({
             success: true,
             message: "Yearly statistics fetched successfully",
-            YearlyStatistics
+            Statistics: {
+                Graph: YearlyStatistics,
+                OpenRate: isNaN(OpenRate) ? 0 : parseFloat(OpenRate.toFixed(2)),
+                ClickRate: isNaN(ClickRate) ? 0 : parseFloat(ClickRate.toFixed(2)),
+                SequenceStarted: 0,
+                Opportunities: 0,
+                Conversions: 0
+            }
         });
     } catch (error) {
         console.error("SendGrid API Error:", error);
