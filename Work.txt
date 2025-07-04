@@ -34,26 +34,26 @@ Lead Outreach
     j. Run a test campaign
 
 5. People Campaign
-    a. New people are pre-lead not discovery
+    a. New people are pre-lead not discovery ✅
     b. Add leads using CSV
     c. Add leads using Google Sheets
     d. Manually add leads
 
 6. Campaign Analytics
     a. Sequence started
-    b. OpenedEmail
-    c. SentEmails
-    d. ClickedEmail
-    e. OpenRate
-    f. ClickRate
+    b. OpenedEmail ✅
+    c. SentEmails ✅
+    d. ClickedEmail ✅
+    e. OpenRate ✅
+    f. ClickRate ✅
     g. Opportunities
     h. Conversions
     i. Conversion price
 
 7. Analytics
-    a. Combine analytics of all campaigns
-    b. Quarterly Combine
-    c. Yearly Combine
+    a. Combine analytics of all campaigns ✅
+    b. Quarterly Combine ✅
+    c. Yearly Combine ✅
 
 8. Dashboard
     a. Summary Widget
@@ -62,7 +62,7 @@ Lead Outreach
         III. Meetings booked
         IV. Opportunities
     b. Live Feed Widget
-        I. Track user activity from each campaign
+        I. Track user activity from each campaign ✅
         II. Collect the top occuring using webhook and display here
     c. Stat Widget
         a. SentEmails
@@ -82,8 +82,7 @@ Lead Outreach
     d. Identify and create task from replies
 
 10. Extras
-    a. ahad merge work
-    b. live feed socket
+    a. Ahad merge work
 
 
 

@@ -153,7 +153,7 @@ exports.AddWebsiteData = catchAsyncError(async (req, res, next) => {
 
 // Only PDF and DOCX files are allowed
 exports.AddDocumentData = catchAsyncError(async (req, res, next) => {
-    const { KeepFiles } = req.body;
+    let { KeepFiles } = req.body;
     const { CurrentWorkspaceId } = req.user.User;
 
     const Business = await BusinessModel.findOne({
@@ -166,6 +166,10 @@ exports.AddDocumentData = catchAsyncError(async (req, res, next) => {
 
     let RetainedFiles = [];
     let ExistingFiles = Array.isArray(Business.DocumentData) ? Business.DocumentData : [];
+
+    if (typeof KeepFiles === 'string') {
+        KeepFiles = JSON.parse(KeepFiles);
+    }
 
     if (KeepFiles && Array.isArray(KeepFiles)) {
         RetainedFiles = ExistingFiles.filter(file => KeepFiles.includes(file.Name));
