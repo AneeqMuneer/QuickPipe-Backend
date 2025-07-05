@@ -7,10 +7,68 @@ const { Op } = require("sequelize");
 
 const LeadModel = require("../Model/leadModel");
 const CampaignModel = require("../Model/campaignModel");
+const EmailAccountModel = require("../Model/emailAccountModel");
 
 const { GetWeekStartAndEndDate } = require("../Utils/dashboardUtils");
 
 SgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+exports.SummaryWidget = catchAsyncError(async (req, res, next) => {
+    const WorkspaceId = req.user.User.CurrentWorkspaceId;
+
+    // Retrieving all active email accounts
+    const ActiveEmails = await EmailAccountModel.findAll({
+        where: {
+            WorkspaceId,
+            // Status: "Active"
+        }
+    });
+
+
+
+    // Retrieving people who have received emails from sendgrid
+    const headers = {
+        Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
+        "Content-Type": "application/json",
+    };
+    const EmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+    const { data: categories } = await axios.get("https://api.sendgrid.com/v3/categories?category=To:&limit=500", { headers });
+    
+    const PeopleReached = categories.length > 0 ? categories
+        .map(item => item.category)
+        .filter(category => {
+            if (!category.startsWith("To:")) return false;
+            const suffix = category.slice(3);
+            return EmailRegex.test(suffix);
+        }) : [];
+
+
+
+    // Retreiving the opportunies and conversions from database
+    const Leads = await LeadModel.findAll({
+        include: [{
+            model: CampaignModel,
+            where: { WorkspaceId },
+            required: true
+        }]
+    });
+
+    const Opportunities = Leads.filter(lead => lead.Status === "Discovery");
+    const Conversions = Leads.filter(lead => lead.Status === "Closed Won");
+
+
+    res.status(200).json({
+        success: true,
+        message: "Summary widget fetched successfully",
+        Details: {
+            ActiveEmails: ActiveEmails.length || 0,
+            PeopleReached: PeopleReached.length || 0,
+            Opportunities: Opportunities.length || 0,
+            Conversions: Conversions.length || 0
+        }
+    });
+});
 
 exports.LiveFeed = catchAsyncError(async (req, res, next) => {
     const events = Array.isArray(req.body) ? req.body : [];
@@ -58,7 +116,7 @@ exports.StatsWidget = catchAsyncError(async (req, res, next) => {
 
 });
 
-exports.TopPeople = catchAsyncError(async (req, res, next) => {
+exports.TopPeopleWidget = catchAsyncError(async (req, res, next) => {
     const WorkspaceId = req.user.User.CurrentWorkspaceId;
 
     const Campaigns = await CampaignModel.findAll({
@@ -78,7 +136,7 @@ exports.TopPeople = catchAsyncError(async (req, res, next) => {
             }
         }
     });
-    
+
     const { StartDate, EndDate } = GetWeekStartAndEndDate();
 
 

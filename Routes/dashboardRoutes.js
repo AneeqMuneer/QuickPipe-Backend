@@ -1,11 +1,12 @@
 const express = require("express");
-const { LiveFeed, StatsWidget, TopPeople } = require("../Controller/dashboardController");
+const { SummaryWidget, LiveFeed, StatsWidget, TopPeopleWidget } = require("../Controller/dashboardController");
 const { VerifyUser } = require("../Middleware/userAuth");
 
 const router = express.Router();
 
+router.route("/SummaryWidget").get(VerifyUser, SummaryWidget);
 router.route("/LiveFeed").post(LiveFeed);
 router.route("/StatsWidget").get(VerifyUser, StatsWidget);
-router.route("/TopPeople").get(VerifyUser, TopPeople);
+router.route("/TopPeopleWidget").get(VerifyUser, TopPeopleWidget);
 
 module.exports = router;
