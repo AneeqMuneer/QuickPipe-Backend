@@ -72,14 +72,14 @@ exports.GetWorkspaceAnalyticsMonthly = catchAsyncError(async (req, res, next) =>
         const Conversions = Leads.filter(lead => lead.Status === "Closed Won").length;
 
         // Get sequence data from SendGrid
-        const { data: categories } = await axios.get("https://api.sendgrid.com/v3/categories?category=Campaign_&limit=500", { headers });
+        const { data: categories } = await axios.get("https://api.sendgrid.com/v3/categories?category=Campaign:&limit=500", { headers });
         
         const uuidV4Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
         
         const campaignCategories = categories
             .map(item => item.category)
             .filter(category => {
-                if (!category.startsWith("Campaign_")) return false;
+                if (!category.startsWith("Campaign:")) return false;
                 const suffix = category.slice(9);
                 return uuidV4Regex.test(suffix);
             });
@@ -176,14 +176,14 @@ exports.GetWorkspaceAnalyticsQuarterly = catchAsyncError(async (req, res, next) 
         const Conversions = Leads.filter(lead => lead.Status === "Closed Won").length;
 
         // Get sequence data from SendGrid
-        const { data: categories } = await axios.get("https://api.sendgrid.com/v3/categories?category=Campaign_&limit=500", { headers });
+        const { data: categories } = await axios.get("https://api.sendgrid.com/v3/categories?category=Campaign:&limit=500", { headers });
         
         const uuidV4Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
         
         const campaignCategories = categories
             .map(item => item.category)
             .filter(category => {
-                if (!category.startsWith("Campaign_")) return false;
+                if (!category.startsWith("Campaign:")) return false;
                 const suffix = category.slice(9);
                 return uuidV4Regex.test(suffix);
             });
@@ -288,14 +288,14 @@ exports.GetWorkspaceAnalyticsYearly = catchAsyncError(async (req, res, next) => 
         const Conversions = Leads.filter(lead => lead.Status === "Closed Won").length;
 
         // Get sequence data from SendGrid
-        const { data: categories } = await axios.get("https://api.sendgrid.com/v3/categories?category=Campaign_&limit=500", { headers });
+        const { data: categories } = await axios.get("https://api.sendgrid.com/v3/categories?category=Campaign:&limit=500", { headers });
         
         const uuidV4Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
         
         const campaignCategories = categories
             .map(item => item.category)
             .filter(category => {
-                if (!category.startsWith("Campaign_")) return false;
+                if (!category.startsWith("Campaign:")) return false;
                 const suffix = category.slice(9);
                 return uuidV4Regex.test(suffix);
             });
