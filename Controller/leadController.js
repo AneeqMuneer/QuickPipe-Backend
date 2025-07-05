@@ -38,7 +38,6 @@ exports.AddLeadsToCampaign = catchAsyncError(async (req, res, next) => {
     Email: lead.email || null,
     Phone: lead.phone || null,
     Company: lead.company || null,
-    Status: "Discovery", // Default value
     CampaignId: CampaignId,
     Website: lead.website || null,
     Title: lead.title || null,

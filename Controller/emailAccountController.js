@@ -2141,7 +2141,7 @@ exports.Sendgrid = catchAsyncError(async (req, res, next) => {
                 receiverName: "Arham Muneer",
                 receiverEmail: "ahad.aziz.jaffer@gmail.com"
             },
-            categories: ["Workspace_cee2cb46-9bc0-4819-9dbf-bdcd35e879f5", "Campaign_02ffa111-46fb-465e-b623-9c1987bf23d6", "arham@quickpipe.xyz"]
+            categories: ["Workspace_cee2cb46-9bc0-4819-9dbf-bdcd35e879f5", "Campaign_02ffa111-46fb-465e-b623-9c1987bf23d6", "beetoo@quickpipe.xyz"]
         }],
         from: { email: "arham@quickpipe.xyz" },
         content: [{

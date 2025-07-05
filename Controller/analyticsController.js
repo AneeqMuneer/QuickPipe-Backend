@@ -5,6 +5,8 @@ const ErrorHandler = require("../Utils/errorHandler");
 const catchAsyncError = require("../Middleware/asyncError");
 
 const WorkspaceModel = require("../Model/workspaceModel");
+const CampaignModel = require("../Model/campaignModel");
+const LeadModel = require("../Model/leadModel");
 
 SgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -30,6 +32,7 @@ exports.GetWorkspaceAnalyticsMonthly = catchAsyncError(async (req, res, next) =>
     };
 
     try {
+        // Retrieving email statistics from SendGrid
         const { data: stats } = await axios.get(url, { headers });
 
         const MonthlyStatistics = [];
@@ -56,6 +59,31 @@ exports.GetWorkspaceAnalyticsMonthly = catchAsyncError(async (req, res, next) =>
         const OpenRate = (TotalUniqueOpens / TotalDelivered) * 100;
         const ClickRate = (TotalUniqueClicks / TotalDelivered) * 100;
 
+        // Get leads data for analytics
+        const Leads = await LeadModel.findAll({
+            include: [{
+                model: CampaignModel,
+                where: { WorkspaceId },
+                required: true
+            }]
+        });
+
+        const Opportunities = Leads.filter(lead => lead.Status === "Discovery").length;
+        const Conversions = Leads.filter(lead => lead.Status === "Closed Won").length;
+
+        // Get sequence data from SendGrid
+        const { data: categories } = await axios.get("https://api.sendgrid.com/v3/categories?category=Campaign_&limit=500", { headers });
+        
+        const uuidV4Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        
+        const campaignCategories = categories
+            .map(item => item.category)
+            .filter(category => {
+                if (!category.startsWith("Campaign_")) return false;
+                const suffix = category.slice(9);
+                return uuidV4Regex.test(suffix);
+            });
+
         res.status(200).json({
             success: true,
             message: "Monthly statistics fetched successfully",
@@ -63,9 +91,9 @@ exports.GetWorkspaceAnalyticsMonthly = catchAsyncError(async (req, res, next) =>
                 Graph: MonthlyStatistics,
                 OpenRate: isNaN(OpenRate) ? 0 : parseFloat(OpenRate.toFixed(2)),
                 ClickRate: isNaN(ClickRate) ? 0 : parseFloat(ClickRate.toFixed(2)),
-                SequenceStarted: 0,
-                Opportunities: 0,
-                Conversions: 0
+                SequenceStarted: campaignCategories.length ? campaignCategories.length : 0,
+                Opportunities: Opportunities ? Opportunities : 0,
+                Conversions: Conversions ? Conversions : 0
             }
         });
     } catch (error) {
@@ -104,6 +132,7 @@ exports.GetWorkspaceAnalyticsQuarterly = catchAsyncError(async (req, res, next) 
     };
 
     try {
+        // Retrieving email statistics from SendGrid
         const { data: stats } = await axios.get(url, { headers });
 
         const QuarterlyStatistics = [
@@ -134,6 +163,31 @@ exports.GetWorkspaceAnalyticsQuarterly = catchAsyncError(async (req, res, next) 
         const OpenRate = (TotalUniqueOpens / TotalDelivered) * 100;
         const ClickRate = (TotalUniqueClicks / TotalDelivered) * 100;
 
+        // Get leads data for analytics
+        const Leads = await LeadModel.findAll({
+            include: [{
+                model: CampaignModel,
+                where: { WorkspaceId },
+                required: true
+            }]
+        });
+
+        const Opportunities = Leads.filter(lead => lead.Status === "Discovery").length;
+        const Conversions = Leads.filter(lead => lead.Status === "Closed Won").length;
+
+        // Get sequence data from SendGrid
+        const { data: categories } = await axios.get("https://api.sendgrid.com/v3/categories?category=Campaign_&limit=500", { headers });
+        
+        const uuidV4Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        
+        const campaignCategories = categories
+            .map(item => item.category)
+            .filter(category => {
+                if (!category.startsWith("Campaign_")) return false;
+                const suffix = category.slice(9);
+                return uuidV4Regex.test(suffix);
+            });
+
         res.status(200).json({
             success: true,
             message: "Quarterly statistics fetched successfully",
@@ -141,9 +195,9 @@ exports.GetWorkspaceAnalyticsQuarterly = catchAsyncError(async (req, res, next) 
                 Graph: QuarterlyStatistics,
                 OpenRate: isNaN(OpenRate) ? 0 : parseFloat(OpenRate.toFixed(2)),
                 ClickRate: isNaN(ClickRate) ? 0 : parseFloat(ClickRate.toFixed(2)),
-                SequenceStarted: 0,
-                Opportunities: 0,
-                Conversions: 0
+                SequenceStarted: campaignCategories.length ? campaignCategories.length : 0,
+                Opportunities: Opportunities ? Opportunities : 0,
+                Conversions: Conversions ? Conversions : 0
             }
         });
     } catch (error) {
@@ -182,6 +236,7 @@ exports.GetWorkspaceAnalyticsYearly = catchAsyncError(async (req, res, next) => 
     };
 
     try {
+        // Retrieving email statistics from SendGrid
         const { data: stats } = await axios.get(url, { headers });
 
         const YearlyStatistics = [
@@ -220,6 +275,31 @@ exports.GetWorkspaceAnalyticsYearly = catchAsyncError(async (req, res, next) => 
         const OpenRate = (TotalUniqueOpens / TotalDelivered) * 100;
         const ClickRate = (TotalUniqueClicks / TotalDelivered) * 100;
 
+        // Get leads data for analytics
+        const Leads = await LeadModel.findAll({
+            include: [{
+                model: CampaignModel,
+                where: { WorkspaceId },
+                required: true
+            }]
+        });
+
+        const Opportunities = Leads.filter(lead => lead.Status === "Discovery").length;
+        const Conversions = Leads.filter(lead => lead.Status === "Closed Won").length;
+
+        // Get sequence data from SendGrid
+        const { data: categories } = await axios.get("https://api.sendgrid.com/v3/categories?category=Campaign_&limit=500", { headers });
+        
+        const uuidV4Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        
+        const campaignCategories = categories
+            .map(item => item.category)
+            .filter(category => {
+                if (!category.startsWith("Campaign_")) return false;
+                const suffix = category.slice(9);
+                return uuidV4Regex.test(suffix);
+            });
+
         res.status(200).json({
             success: true,
             message: "Yearly statistics fetched successfully",
@@ -227,9 +307,9 @@ exports.GetWorkspaceAnalyticsYearly = catchAsyncError(async (req, res, next) => 
                 Graph: YearlyStatistics,
                 OpenRate: isNaN(OpenRate) ? 0 : parseFloat(OpenRate.toFixed(2)),
                 ClickRate: isNaN(ClickRate) ? 0 : parseFloat(ClickRate.toFixed(2)),
-                SequenceStarted: 0,
-                Opportunities: 0,
-                Conversions: 0
+                SequenceStarted: campaignCategories.length ? campaignCategories.length : 0,
+                Opportunities: Opportunities ? Opportunities : 0,
+                Conversions: Conversions ? Conversions : 0
             }
         });
     } catch (error) {
