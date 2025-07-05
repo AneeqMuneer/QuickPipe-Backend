@@ -25,7 +25,6 @@ exports.SummaryWidget = catchAsyncError(async (req, res, next) => {
     });
 
 
-
     // Retrieving people who have received emails from sendgrid
     const headers = {
         Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
@@ -34,7 +33,7 @@ exports.SummaryWidget = catchAsyncError(async (req, res, next) => {
     const EmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
     const { data: categories } = await axios.get("https://api.sendgrid.com/v3/categories?category=To:&limit=500", { headers });
-    
+
     const PeopleReached = categories.length > 0 ? categories
         .map(item => item.category)
         .filter(category => {
@@ -42,7 +41,6 @@ exports.SummaryWidget = catchAsyncError(async (req, res, next) => {
             const suffix = category.slice(3);
             return EmailRegex.test(suffix);
         }) : [];
-
 
 
     // Retreiving the opportunies and conversions from database
@@ -70,7 +68,7 @@ exports.SummaryWidget = catchAsyncError(async (req, res, next) => {
     });
 });
 
-exports.LiveFeed = catchAsyncError(async (req, res, next) => {
+exports.LiveFeedWidget = catchAsyncError(async (req, res, next) => {
     const events = Array.isArray(req.body) ? req.body : [];
 
     const io = req.app.get('io');
@@ -112,8 +110,145 @@ exports.LiveFeed = catchAsyncError(async (req, res, next) => {
     res.status(200).send('OK');
 });
 
-exports.StatsWidget = catchAsyncError(async (req, res, next) => {
+exports.StatsWeeklyWidget = catchAsyncError(async (req, res, next) => {
+    const WorkspaceId = req.user.User.CurrentWorkspaceId;
 
+    const { StartDate, EndDate } = GetWeekStartAndEndDate();
+
+    const Campaigns = await CampaignModel.findAll({
+        where: {
+            WorkspaceId
+        }
+    });
+
+    // Retreiving opened, clicks, and delivered emails from sendgrid
+    const headers = {
+        Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
+        "Content-Type": "application/json",
+    };
+
+    const TotalStats = {
+        Opens: 0,
+        Clicks: 0,
+        Delivered: 0
+    }
+
+    try {
+        const { data: stats } = await axios.get(`https://api.sendgrid.com/v3/categories/stats?start_date=${StartDate}&end_date=${EndDate}&aggregated_by=day&categories=Workspace:${WorkspaceId}`, { headers });
+
+        stats.forEach(day => {
+            TotalStats.Opens += day.stats[0].metrics.unique_opens;
+            TotalStats.Clicks += day.stats[0].metrics.unique_clicks;
+            TotalStats.Delivered += day.stats[0].metrics.delivered;
+        });
+    } catch (error) {
+        console.error("SendGrid API Error:", error.response.data.errors[0].message);
+    }
+
+
+    // Retreiving opportunities and conversions from database
+    const Opportunities = await LeadModel.findAll({
+        where: {
+            CampaignId: {
+                [Op.in]: Campaigns.map(campaign => campaign.id)
+            },
+            Status: "Discovery"
+        }
+    });
+
+    const Conversions = await LeadModel.findAll({
+        where: {
+            CampaignId: {
+                [Op.in]: Campaigns.map(campaign => campaign.id)
+            },
+            Status: "Closed Won"
+        }
+    });
+
+    res.status(200).json({
+        success: true,
+        message: "Stats weekly widget fetched successfully",
+        Details: {
+            Opened: TotalStats.Opens || 0,
+            Clicked: TotalStats.Clicks || 0,
+            EmailsSent: TotalStats.Delivered || 0,
+            Opportunities: Opportunities.length || 0,
+            Conversions: Conversions.length || 0,
+            Replied: 0
+        }
+    });
+});
+
+exports.StatsMonthlyWidget = catchAsyncError(async (req, res, next) => {
+    const WorkspaceId = req.user.User.CurrentWorkspaceId;
+
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+    const StartDate = currentMonth < 10 ? `${currentYear}-0${currentMonth}-01` : `${currentYear}-${currentMonth}-01`;
+    const EndDate = currentMonth < 10 ? `${currentYear}-0${currentMonth}-${new Date(currentYear, currentMonth, 0).getDate()}` : `${currentYear}-${currentMonth}-${new Date(currentYear, currentMonth, 0).getDate()}`;
+
+    const Campaigns = await CampaignModel.findAll({
+        where: {
+            WorkspaceId
+        }
+    });
+
+    // Retreiving opened, clicks, and delivered emails from sendgrid
+    const headers = {
+        Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
+        "Content-Type": "application/json",
+    };
+
+    const TotalStats = {
+        Opens: 0,
+        Clicks: 0,
+        Delivered: 0
+    }
+
+    try {
+        const { data: stats } = await axios.get(`https://api.sendgrid.com/v3/categories/stats?start_date=${StartDate}&end_date=${EndDate}&aggregated_by=day&categories=Workspace:${WorkspaceId}`, { headers });
+
+        stats.forEach(day => {
+            TotalStats.Opens += day.stats[0].metrics.unique_opens;
+            TotalStats.Clicks += day.stats[0].metrics.unique_clicks;
+            TotalStats.Delivered += day.stats[0].metrics.delivered;
+        });
+    } catch (error) {
+        console.error("SendGrid API Error:", error.response.data.errors[0].message);
+    }
+
+
+    // Retreiving opportunities and conversions from database
+    const Opportunities = await LeadModel.findAll({
+        where: {
+            CampaignId: {
+                [Op.in]: Campaigns.map(campaign => campaign.id)
+            },
+            Status: "Discovery"
+        }
+    });
+
+    const Conversions = await LeadModel.findAll({
+        where: {
+            CampaignId: {
+                [Op.in]: Campaigns.map(campaign => campaign.id)
+            },
+            Status: "Closed Won"
+        }
+    });
+
+    res.status(200).json({
+        success: true,
+        message: "Stats monthly widget fetched successfully",
+        Details: {
+            Opened: TotalStats.Opens || 0,
+            Clicked: TotalStats.Clicks || 0,
+            EmailsSent: TotalStats.Delivered || 0,
+            Opportunities: Opportunities.length || 0,
+            Conversions: Conversions.length || 0,
+            Replied: 0
+        }
+    });
 });
 
 exports.TopPeopleWidget = catchAsyncError(async (req, res, next) => {
