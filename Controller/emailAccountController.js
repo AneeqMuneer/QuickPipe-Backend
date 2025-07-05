@@ -671,7 +671,7 @@ exports.GetDomains = catchAsyncError(async (req, res, next) => {
     });
 });
 
-// Zoho URL to get auth code for a zoho account for the firs time 
+// Zoho URL to get auth code for a zoho account for the first time 
 // https://accounts.zoho.com/oauth/v2/auth?response_type=code&client_id=1000.E5TVABP1XJHT9VSKR2RWYKFKL7OTXO&scope=AaaServer.profile.Read,ZohoMail.organization.domains.ALL,ZohoMail.organization.accounts.ALL&redirect_uri=http://localhost:4000/EmailAccount/zoho/callback&access_type=offline&prompt=consent
 
 exports.ZohoAccountCallback = catchAsyncError(async (req, res, next) => {
@@ -2130,7 +2130,7 @@ exports.Sendgrid = catchAsyncError(async (req, res, next) => {
     // 2. Email to receive2@gmail.com — Aneeq's Workspace, Beetu Campaign, from send2@gmail.com
     messages.push({
         personalizations: [{
-            to: [{ email: "ahad.aziz.jaffer@gmail.com", name: "Arham Muneer" }],
+            to: [{ email: "aneeq.muneer03@gmail.com", name: "Arham Muneer" }],
             subject: "Test Campaign Email",
             custom_args: {
                 workspaceName: "Aneeq's Workspace",
@@ -2147,8 +2147,8 @@ exports.Sendgrid = catchAsyncError(async (req, res, next) => {
         content: [{
             type: "text/html",
             value: `<strong>Hello!</strong><br/>
-  This email is part of <em>Aneeq's Workspace</em>, Beetu Campaign, sent from arham@quickpipe.xyz.<br/><br/>
-  <a href="https://example.com/test-link?user=ahad.aziz.jaffer@gmail.com" target="_blank">Click here to test tracking</a><br/><br/>
+  This email is part of <em>Aneeq's Workspace</em>, Abdul Ahad Campaign, sent from aneeq@quickpipe.xyz.<br/><br/>
+  <a href="https://example.com/test-link?user=ahadaziz4@gmail.com" target="_blank">Click here to test tracking</a><br/><br/>
   Thanks!<br/>
   — Aneeq`
         }],
@@ -2161,7 +2161,7 @@ exports.Sendgrid = catchAsyncError(async (req, res, next) => {
     // 3. Email to receive3@gmail.com — Aneeq's Workspace, Beetu Campaign, from send1@gmail.com
     messages.push({
         personalizations: [{
-            to: [{ email: "yourdadpro999@gmail.com", name: "Your Dad" }],
+            to: [{ email: "beretemwa.ieru@gmail.com", name: "Your Dad" }],
             subject: "Test Campaign Email",
             custom_args: {
                 workspaceName: "Aneeq's Workspace",
@@ -2178,8 +2178,8 @@ exports.Sendgrid = catchAsyncError(async (req, res, next) => {
         content: [{
             type: "text/html",
             value: `<strong>Hello!</strong><br/>
-  This email is part of <em>Aneeq's Workspace</em>, Beetu Campaign, sent from aneeq@quickpipe.xyz.<br/><br/>
-  <a href="https://example.com/test-link?user=yourdadpro999@gmail.com" target="_blank">Click here
+  This email is part of <em>Aneeq's Workspace</em>, Abdul Ahad Campaign, sent from aneeq@quickpipe.xyz.<br/><br/>
+  <a href="https://example.com/test-link?user=ahadaziz4@gmail.com" target="_blank">Click here to test tracking</a><br/><br/>
   Thanks!<br/>
   — Aneeq`
         }],
