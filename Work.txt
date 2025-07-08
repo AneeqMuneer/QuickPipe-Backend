@@ -1,27 +1,63 @@
 Lead Outreach
 -----------------------------------------------------
-1. Sending emails using test emails
-    a. Add authentication DNS records ✅
-    b. Add Link tracking DNS records ✅
-    c. Automate SSL certificate creation
-    d. Add the DNS records for the certificate to the domain
-    e. Send the email ✅
-    f. Calculate the health score
+1. Email Accounts
+    a. Automate SSL certificate creation
+    b. Add the DNS records for the certificate to the domain
+    c. Retrieve the analytics
+        i. Emails Sent
+        ii. Warmup Emails
+        iii. Total Emails
+        iv. Health Score
 
-2. Using the API to track the email analytics
-    a. OpenRate ✅
-    b. ClickRate ✅
+2. Incomplete Tasks
+    a. Tasks Widget
+    b. Email account details
+    c. Conversion tracking
+    d. Opportunity tracking
+    e. Special characters
+    f. Template add
+    g. Merge Ahad work
+    h. Retrieve number of replies from 
+    i. Create tasks with proper types
 
-3. Running a test campaign
-    a. Run the campaign
-    b. Status
-    c. Progress
-    d. Sent
-    e. Click
-    f. Replies
-    g. Opportunities
+3. Campaigns
+    a. Create Campaign
+    b. Get All Campaign
+        i. Name
+        ii. Status
+        iii. Progress
+        iv. Sent
+        v. Click
+        vi. replies
+        vii. Opportunities
+    c. Delete Campaign
+    d. Run Pause Campaign
 
-4. Campaign Options
+4. People
+    a. Get All leads
+    b. Add leads Manually
+    c. Add leads CSV
+    d. Add leads Google Sheets
+
+5. Analytics
+    a. OpenRate
+    b. ClickRate
+    c. Opportunities
+    d. Conversions
+    e. Graph
+        i. Sent
+        ii. Opened
+        iii. Clicked
+        iv. Opportunities
+        v. Conversions
+    f. Status
+    g. Progress
+
+6. Sequence and Schedule
+    a. Check All Sequence API
+    b. Check All Schedule API
+
+7. Campaign Options
     a. Owner Update
     b. Daily email send limit
     c. Max new leads per day
@@ -31,58 +67,11 @@ Lead Outreach
     g. Stop campaign for lead
     h. Toggle tracking
     i. Insert unsubscribe link header
-    j. Run a test campaign
 
-5. People Campaign
-    a. New people are pre-lead not discovery ✅
-    b. Add leads using CSV
-    c. Add leads using Google Sheets
-    d. Manually add leads
-
-6. Campaign Analytics
-    a. Sequence started
-    b. OpenedEmail ✅
-    c. SentEmails ✅
-    d. ClickedEmail ✅
-    e. OpenRate ✅
-    f. ClickRate ✅
-    g. Opportunities
-    h. Conversions
-    i. Conversion price
-
-7. Analytics
-    a. Combine analytics of all campaigns ✅
-    b. Quarterly Combine ✅
-    c. Yearly Combine ✅
-
-8. Dashboard
-    a. Summary Widget
-        I. Active emails of all campaigns
-        II. People reached
-        III. Meetings booked
-        IV. Opportunities
-    b. Live Feed Widget
-        I. Track user activity from each campaign ✅
-        II. Collect the top occuring using webhook and display here
-    c. Stat Widget
-        a. SentEmails
-        b. ReplyEmails
-        c. OpenedEmail
-        d. Opportunities
-    d. Upcoming tasks
-        a. Collect all tasks
-        b. Display those that are due today and tomorrow
-        c. Display others if current list is not in the threshold
-    e. Top people
-
-9. Multibox
-    a. Create tasks with proper types
-    b. Gather all inboxes from all the email account
-    c. Compose a reply using AI
-    d. Identify and create task from replies
-
-10. Extras
-    a. Ahad merge work
+8. Multibox 
+    a. Gather all inboxes from all the email account
+    b. Compose a reply using AI
+    c. Identify and create task from replies
 
 
 
