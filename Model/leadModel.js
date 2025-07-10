@@ -72,7 +72,21 @@ const Lead = sequelize.define(
     SendingSchedule: {
       type: DataTypes.JSONB,
       allowNull: true,
-    }
+    },
+    // Fields for Opportunity & Conversion tracking
+    OpportunityTime: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    OpportunityAmount: {
+      type: DataTypes.FLOAT,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    ConversionTime: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
   },
   {
     tableName: 'Leads',

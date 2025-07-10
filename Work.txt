@@ -11,14 +11,15 @@ Lead Outreach
 
 2. Incomplete Tasks
     a. Tasks Widget
-    b. Email account details
-    c. Conversion tracking
-    d. Opportunity tracking
-    e. Special characters
+    b. Anaytics Update
+        i. analytics Conversion
+        ii. analytics money
+        iii. conversion in Graph
+        iv. opportunities in Graph
     f. Template add
-    g. Merge Ahad work
-    h. Retrieve number of replies from 
+    h. Retrieve number of replies from
     i. Create tasks with proper types
+    j. Connect Redis
 
 3. Campaigns
     a. Create Campaign
@@ -84,7 +85,7 @@ Website Visitor
 
 
 
-Call Options -- 1 day
+Call Options
 -----------------------------------------------------
 1. Summary
 2. Record
@@ -92,3 +93,8 @@ Call Options -- 1 day
 4. Hold
 5. Switching
 6. Integrate AI voice with chatbot
+
+
+
+Notifications
+-----------------------------------------------------

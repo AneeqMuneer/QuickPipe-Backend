@@ -210,7 +210,15 @@ exports.DeleteLead = catchAsyncError(async (req, res, next) => {
 
 exports.UpdateLeadStatus = catchAsyncError(async (req, res, next) => {
   const { leadid } = req.params;
-  const { status } = req.body;
+  const { status , amount } = req.body;
+
+  if (!status) {
+    return next(new ErrorHandler("Updated status is required", 400));
+  }
+
+  if (status === "Discovery" && !amount) {
+    return next(new ErrorHandler("Amount is required for Discovery status", 400));
+  }
 
   const lead = await LeadModel.findByPk(leadid);
 
@@ -218,12 +226,49 @@ exports.UpdateLeadStatus = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Lead not found", 404));
   }
 
+  if (status === "Discovery") {
+    lead.OpportunityTime = new Date();
+    lead.OpportunityAmount = amount;
+  } else if (status === "Closed Won") {
+    lead.ConversionTime = new Date();
+  } else {
+    lead.ConversionTime = null;
+  }
+
   lead.Status = status;
+
   await lead.save();
 
   res.status(200).json({
     success: true,
     message: "Lead status updated successfully",
+    lead
+  });
+});
+
+exports.PromoteLead = catchAsyncError(async (req, res, next) => {
+  const { amount } = req.body;
+  const { leadid } = req.params;
+
+  if (!amount) {
+    return next(new ErrorHandler("Amount is required", 400));
+  }
+
+  const lead = await LeadModel.findByPk(leadid);
+
+  if (!lead) {
+    return next(new ErrorHandler("Lead not found", 404));
+  }
+
+  lead.Status = "Discovery";
+  lead.OpportunityAmount = amount;
+  lead.OpportunityTime = new Date();
+
+  await lead.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Lead can now be found in the pipeline.",
     lead
   });
 });

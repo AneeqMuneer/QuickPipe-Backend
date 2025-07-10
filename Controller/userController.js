@@ -19,8 +19,8 @@ exports.Signup = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler("Please fill the required fields", 400));
     }
 
-    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/.test(Password)) {
-        return next(new ErrorHandler("Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)." , 400));
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!#$%&()*+,-./:;<=>?@[\]^_{|}~]).{8,}$/.test(Password)) {
+        return next(new ErrorHandler("Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character." , 400));
     }
 
     const User = await UserModel.create({
@@ -206,8 +206,8 @@ exports.ResetPassword = catchAsyncError(async (req , res , next) => {
         return next(new ErrorHandler("New password cannot be same as the last one", 400));
     }
 
-    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/.test(NewPassword)) {
-        return next(new ErrorHandler("Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)." , 400));
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!#$%&()*+,-./:;<=>?@[\]^_{|}~]).{8,}$/.test(NewPassword)) {
+        return next(new ErrorHandler("Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character." , 400));
     }
 
     User.Password = await bcrypt.hash(NewPassword, 10);
@@ -264,8 +264,8 @@ exports.UpdatePassword = catchAsyncError(async (req , res , next) => {
         return next(new ErrorHandler("New password cannot be same as the last one" , 400));
     }
 
-    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/.test(NewPassword)) {
-        return next(new ErrorHandler("Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)." , 400));
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!#$%&()*+,-./:;<=>?@[\]^_{|}~]).{8,}$/.test(NewPassword)) {
+        return next(new ErrorHandler("Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character." , 400));
     }
     
     User.Password = await bcrypt.hash(NewPassword, 10);
