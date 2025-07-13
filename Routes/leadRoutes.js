@@ -7,7 +7,8 @@ const {
     DeleteLead, 
     UpdateLeadStatus, 
     SearchLeads,
-    SearchLeadsByFilter
+    SearchLeadsByFilter,
+    PromoteLead
 } = require("../Controller/leadController");
 const { VerifyUser } = require("../Middleware/userAuth");
 
@@ -21,5 +22,6 @@ router.route("/DeleteLead/:leadid").delete(VerifyUser, DeleteLead);
 router.route("/UpdateLeadStatus/:leadid").patch(VerifyUser, UpdateLeadStatus);
 router.route('/SearchLeads').post(VerifyUser, SearchLeads);
 router.route('/SearchLeadsByFilter').post(VerifyUser, SearchLeadsByFilter);
+router.route('/PromoteLead/:leadid').post(VerifyUser, PromoteLead);
 
 module.exports = router;

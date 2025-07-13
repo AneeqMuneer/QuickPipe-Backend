@@ -16,7 +16,6 @@ Lead Outreach
         ii. analytics money
         iii. conversion in Graph
         iv. opportunities in Graph
-    f. Template add
     h. Retrieve number of replies from
     i. Create tasks with proper types
     j. Connect Redis

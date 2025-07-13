@@ -135,20 +135,12 @@ exports.GetLeadById = catchAsyncError(async (req, res, next) => {
 
 exports.UpdateLead = catchAsyncError(async (req, res, next) => {
   const { leadid } = req.params;
-  const { Name, Email, Phone, Company, CampaignId, Website, Title, Location, Status, EmployeeCount } = req.body;
+  const { Name, Email, Phone, Company, CampaignId, Website, Title, Location, EmployeeCount, Amount } = req.body;
 
   const Lead = await LeadModel.findByPk(leadid);
 
   if (!Lead) {
     return next(new ErrorHandler("Lead not found", 404));
-  }
-
-  // Validate status if provided
-  if (Status) {
-    const validStatuses = ['Discovery', 'Evaluation', 'Proposal', 'Negotiation', 'Commit', 'Closed'];
-    if (!validStatuses.includes(Status)) {
-      return next(new ErrorHandler("Invalid status provided", 400));
-    }
   }
 
   // Prepare update data
@@ -161,8 +153,8 @@ exports.UpdateLead = catchAsyncError(async (req, res, next) => {
   if (Website) updateData.Website = Website;
   if (Title) updateData.Title = Title;
   if (Location) updateData.Location = Location;
-  if (Status) updateData.Status = Status;
   if (EmployeeCount) updateData.EmployeeCount = EmployeeCount;
+  if (Amount) updateData.OpportunityAmount = Amount;
 
   await LeadModel.update(updateData, {
     where: { id: leadid }
@@ -210,14 +202,10 @@ exports.DeleteLead = catchAsyncError(async (req, res, next) => {
 
 exports.UpdateLeadStatus = catchAsyncError(async (req, res, next) => {
   const { leadid } = req.params;
-  const { status , amount } = req.body;
+  const { status } = req.body;
 
   if (!status) {
     return next(new ErrorHandler("Updated status is required", 400));
-  }
-
-  if (status === "Discovery" && !amount) {
-    return next(new ErrorHandler("Amount is required for Discovery status", 400));
   }
 
   const lead = await LeadModel.findByPk(leadid);
@@ -228,7 +216,6 @@ exports.UpdateLeadStatus = catchAsyncError(async (req, res, next) => {
 
   if (status === "Discovery") {
     lead.OpportunityTime = new Date();
-    lead.OpportunityAmount = amount;
   } else if (status === "Closed Won") {
     lead.ConversionTime = new Date();
   } else {
