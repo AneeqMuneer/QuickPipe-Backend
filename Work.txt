@@ -11,14 +11,9 @@ Lead Outreach
 
 2. Incomplete Tasks
     a. Tasks Widget
-    b. Anaytics Update
-        i. analytics Conversion
-        ii. analytics money
-        iii. conversion in Graph
-        iv. opportunities in Graph
-    h. Retrieve number of replies from
-    i. Create tasks with proper types
-    j. Connect Redis
+    b. Create tasks with proper types
+    c. Retrieve number of replies from
+    d. Connect Redis
 
 3. Campaigns
     a. Create Campaign

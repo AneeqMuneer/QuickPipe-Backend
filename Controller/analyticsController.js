@@ -24,6 +24,9 @@ exports.GetWorkspaceAnalyticsMonthly = catchAsyncError(async (req, res, next) =>
     const startDate = currentMonth < 10 ? `${currentYear}-0${currentMonth}-01` : `${currentYear}-${currentMonth}-01`;
     const endDate = currentMonth < 10 ? `${currentYear}-0${currentMonth}-${new Date(currentYear, currentMonth, 0).getDate()}` : `${currentYear}-${currentMonth}-${new Date(currentYear, currentMonth, 0).getDate()}`;
 
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(endDate);
+
     const url = `https://api.sendgrid.com/v3/categories/stats?start_date=${startDate}&end_date=${endDate}&categories=workspace1&aggregated_by=day`;
 
     const headers = {
@@ -48,7 +51,9 @@ exports.GetWorkspaceAnalyticsMonthly = catchAsyncError(async (req, res, next) =>
                 UniqueOpens: unique_opens,
                 UniqueClicks: unique_clicks,
                 Opens: opens,
-                Clicks: clicks
+                Clicks: clicks,
+                Opportunities: 0,
+                Conversions: 0
             });
         });
 
@@ -68,14 +73,31 @@ exports.GetWorkspaceAnalyticsMonthly = catchAsyncError(async (req, res, next) =>
             }]
         });
 
-        const Opportunities = Leads.filter(lead => lead.Status === "Discovery").length;
-        const Conversions = Leads.filter(lead => lead.Status === "Closed Won").length;
+        const Opportunities = Leads.filter(lead => lead.OpportunityTime !== null && lead.OpportunityTime >= startDateObj && lead.OpportunityTime <= endDateObj);
+        const Conversions = Leads.filter(lead => lead.ConversionTime !== null && lead.ConversionTime >= startDateObj && lead.ConversionTime <= endDateObj);
+        const ConversionMoney = Opportunities.reduce((acc, curr) => acc + curr.OpportunityAmount, 0);
+
+        Opportunities.forEach(opportunity => {
+            const date = opportunity.OpportunityTime.toISOString().split("T")[0];
+            const index = MonthlyStatistics.findIndex(stat => stat.Date === parseInt(date.split("-")[2]));
+            if (index !== -1) {
+                MonthlyStatistics[index].Opportunities++;
+            }
+        });
+
+        Conversions.forEach(conversion => {
+            const date = conversion.ConversionTime.toISOString().split("T")[0];
+            const index = MonthlyStatistics.findIndex(stat => stat.Date === parseInt(date.split("-")[2]));
+            if (index !== -1) {
+                MonthlyStatistics[index].Conversions++;
+            }
+        });
 
         // Get sequence data from SendGrid
         const { data: categories } = await axios.get("https://api.sendgrid.com/v3/categories?category=Campaign:&limit=500", { headers });
-        
+
         const uuidV4Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-        
+
         const campaignCategories = categories
             .map(item => item.category)
             .filter(category => {
@@ -92,8 +114,9 @@ exports.GetWorkspaceAnalyticsMonthly = catchAsyncError(async (req, res, next) =>
                 OpenRate: isNaN(OpenRate) ? 0 : parseFloat(OpenRate.toFixed(2)),
                 ClickRate: isNaN(ClickRate) ? 0 : parseFloat(ClickRate.toFixed(2)),
                 SequenceStarted: campaignCategories.length ? campaignCategories.length : 0,
-                Opportunities: Opportunities ? Opportunities : 0,
-                Conversions: Conversions ? Conversions : 0
+                Opportunities: Opportunities ? Opportunities.length : 0,
+                Conversions: Conversions ? Conversions.length : 0,
+                Amount: ConversionMoney ? ConversionMoney : 0
             }
         });
     } catch (error) {
@@ -124,6 +147,9 @@ exports.GetWorkspaceAnalyticsQuarterly = catchAsyncError(async (req, res, next) 
     const startDate = `${currentYear}-01-01`;
     const endDate = `${currentYear}-12-31`;
 
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(endDate);
+
     const url = `https://api.sendgrid.com/v3/categories/stats?start_date=${startDate}&end_date=${endDate}&categories=workspace1&aggregated_by=day`;
 
     const headers = {
@@ -136,10 +162,10 @@ exports.GetWorkspaceAnalyticsQuarterly = catchAsyncError(async (req, res, next) 
         const { data: stats } = await axios.get(url, { headers });
 
         const QuarterlyStatistics = [
-            { Quarter: 1, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
-            { Quarter: 2, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
-            { Quarter: 3, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
-            { Quarter: 4, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 }
+            { Quarter: 1, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0, Opportunities: 0, Conversions: 0 },
+            { Quarter: 2, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0, Opportunities: 0, Conversions: 0 },
+            { Quarter: 3, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0, Opportunities: 0, Conversions: 0 },
+            { Quarter: 4, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0, Opportunities: 0, Conversions: 0 }
         ];
 
         stats.forEach(stat => {
@@ -172,14 +198,25 @@ exports.GetWorkspaceAnalyticsQuarterly = catchAsyncError(async (req, res, next) 
             }]
         });
 
-        const Opportunities = Leads.filter(lead => lead.Status === "Discovery").length;
-        const Conversions = Leads.filter(lead => lead.Status === "Closed Won").length;
+        const Opportunities = Leads.filter(lead => lead.OpportunityTime !== null && lead.OpportunityTime >= startDateObj && lead.OpportunityTime <= endDateObj);
+        const Conversions = Leads.filter(lead => lead.ConversionTime !== null && lead.ConversionTime >= startDateObj && lead.ConversionTime <= endDateObj);
+        const ConversionMoney = Opportunities.reduce((acc, curr) => acc + curr.OpportunityAmount, 0);
+
+        Opportunities.forEach(opportunity => {
+            const quarter = Math.ceil((new Date(opportunity.OpportunityTime).getMonth() + 1) / 3) - 1;
+            QuarterlyStatistics[quarter].Opportunities++;
+        });
+
+        Conversions.forEach(conversion => {
+            const quarter = Math.ceil((new Date(conversion.ConversionTime).getMonth() + 1) / 3) - 1;
+            QuarterlyStatistics[quarter].Conversions++;
+        });
 
         // Get sequence data from SendGrid
         const { data: categories } = await axios.get("https://api.sendgrid.com/v3/categories?category=Campaign:&limit=500", { headers });
-        
+
         const uuidV4Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-        
+
         const campaignCategories = categories
             .map(item => item.category)
             .filter(category => {
@@ -196,8 +233,9 @@ exports.GetWorkspaceAnalyticsQuarterly = catchAsyncError(async (req, res, next) 
                 OpenRate: isNaN(OpenRate) ? 0 : parseFloat(OpenRate.toFixed(2)),
                 ClickRate: isNaN(ClickRate) ? 0 : parseFloat(ClickRate.toFixed(2)),
                 SequenceStarted: campaignCategories.length ? campaignCategories.length : 0,
-                Opportunities: Opportunities ? Opportunities : 0,
-                Conversions: Conversions ? Conversions : 0
+                Opportunities: Opportunities ? Opportunities.length : 0,
+                Conversions: Conversions ? Conversions.length : 0,
+                Amount: ConversionMoney ? ConversionMoney : 0
             }
         });
     } catch (error) {
@@ -228,6 +266,9 @@ exports.GetWorkspaceAnalyticsYearly = catchAsyncError(async (req, res, next) => 
     const startDate = `${currentYear}-01-01`;
     const endDate = `${currentYear}-12-31`;
 
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(endDate);
+
     const url = `https://api.sendgrid.com/v3/categories/stats?start_date=${startDate}&end_date=${endDate}&categories=workspace1&aggregated_by=day`;
 
     const headers = {
@@ -240,18 +281,18 @@ exports.GetWorkspaceAnalyticsYearly = catchAsyncError(async (req, res, next) => 
         const { data: stats } = await axios.get(url, { headers });
 
         const YearlyStatistics = [
-            { Month: 1, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
-            { Month: 2, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
-            { Month: 3, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
-            { Month: 4, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
-            { Month: 5, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
-            { Month: 6, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
-            { Month: 7, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
-            { Month: 8, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
-            { Month: 9, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
-            { Month: 10, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
-            { Month: 11, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 },
-            { Month: 12, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0 }
+            { Month: 1, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0, Opportunities: 0, Conversions: 0 },
+            { Month: 2, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0, Opportunities: 0, Conversions: 0 },
+            { Month: 3, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0, Opportunities: 0, Conversions: 0 },
+            { Month: 4, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0, Opportunities: 0, Conversions: 0 },
+            { Month: 5, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0, Opportunities: 0, Conversions: 0 },
+            { Month: 6, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0, Opportunities: 0, Conversions: 0 },
+            { Month: 7, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0, Opportunities: 0, Conversions: 0 },
+            { Month: 8, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0, Opportunities: 0, Conversions: 0 },
+            { Month: 9, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0, Opportunities: 0, Conversions: 0 },
+            { Month: 10, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0, Opportunities: 0, Conversions: 0 },
+            { Month: 11, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0, Opportunities: 0, Conversions: 0 },
+            { Month: 12, Delivered: 0, UniqueOpens: 0, UniqueClicks: 0, Opens: 0, Clicks: 0, Opportunities: 0, Conversions: 0 }
         ];
 
         stats.forEach(stat => {
@@ -284,14 +325,25 @@ exports.GetWorkspaceAnalyticsYearly = catchAsyncError(async (req, res, next) => 
             }]
         });
 
-        const Opportunities = Leads.filter(lead => lead.Status === "Discovery").length;
-        const Conversions = Leads.filter(lead => lead.Status === "Closed Won").length;
+        const Opportunities = Leads.filter(lead => lead.OpportunityTime !== null && lead.OpportunityTime >= startDateObj && lead.OpportunityTime <= endDateObj);
+        const Conversions = Leads.filter(lead => lead.ConversionTime !== null && lead.ConversionTime >= startDateObj && lead.ConversionTime <= endDateObj);
+        const ConversionMoney = Opportunities.reduce((acc, curr) => acc + curr.OpportunityAmount, 0);
+
+        Opportunities.forEach(opportunity => {
+            const month = new Date(opportunity.OpportunityTime).getMonth() - 1;
+            YearlyStatistics[month].Opportunities++;
+        });
+
+        Conversions.forEach(conversion => {
+            const month = new Date(conversion.ConversionTime).getMonth() - 1;
+            YearlyStatistics[month].Conversions++;
+        });
 
         // Get sequence data from SendGrid
         const { data: categories } = await axios.get("https://api.sendgrid.com/v3/categories?category=Campaign:&limit=500", { headers });
-        
+
         const uuidV4Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-        
+
         const campaignCategories = categories
             .map(item => item.category)
             .filter(category => {
@@ -308,8 +360,9 @@ exports.GetWorkspaceAnalyticsYearly = catchAsyncError(async (req, res, next) => 
                 OpenRate: isNaN(OpenRate) ? 0 : parseFloat(OpenRate.toFixed(2)),
                 ClickRate: isNaN(ClickRate) ? 0 : parseFloat(ClickRate.toFixed(2)),
                 SequenceStarted: campaignCategories.length ? campaignCategories.length : 0,
-                Opportunities: Opportunities ? Opportunities : 0,
-                Conversions: Conversions ? Conversions : 0
+                Opportunities: Opportunities ? Opportunities.length : 0,
+                Conversions: Conversions ? Conversions.length : 0,
+                Amount: ConversionMoney ? ConversionMoney : 0
             }
         });
     } catch (error) {
