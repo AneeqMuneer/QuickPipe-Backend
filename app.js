@@ -58,6 +58,7 @@ const WorkspaceRoutes = require("./Routes/workspaceRoutes");
 const ZoomRoutes = require('./Routes/zoomRoutes');
 
 app.use("/analytics", AnalyticsRoutes);
+app.use("/api", ApiRoutes);
 app.use("/business", BusinessRoutes);
 app.use("/calendar", CalendarRoutes);
 app.use('/calls', CallRoutes);
