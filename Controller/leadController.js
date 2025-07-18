@@ -8,6 +8,7 @@ const { ExtractTitleAndLocation, EnrichLeadWithApollo, ExtractAllPossible, AiSea
 
 const LeadModel = require("../Model/leadModel");
 const CampaignModel = require("../Model/campaignModel");
+const { Configuration, OpenAIApi } = require('openai');
 
 exports.AddLeadsToCampaign = catchAsyncError(async (req, res, next) => {
   const { Leads, CampaignId } = req.body;
@@ -171,32 +172,40 @@ exports.UpdateLead = catchAsyncError(async (req, res, next) => {
 });
 
 exports.DeleteLead = catchAsyncError(async (req, res, next) => {
-  const { leadid } = req.params;
-  const CurrentWorkspaceId = req.user.User.CurrentWorkspaceId;
+  // const { leadid } = req.params;
+  // const CurrentWorkspaceId = req.user.User.CurrentWorkspaceId;
 
-  const lead = await LeadModel.findByPk(leadid);
-  const campaignId = lead.CampaignId;
+  // const lead = await LeadModel.findByPk(leadid);
+  // const campaignId = lead.CampaignId;
   
-  const campaign = await CampaignModel.findOne({
-    where: {
-      id: campaignId,
-      WorkspaceId: CurrentWorkspaceId
-    }
-  });
+  // const campaign = await CampaignModel.findOne({
+  //   where: {
+  //     id: campaignId,
+  //     WorkspaceId: CurrentWorkspaceId
+  //   }
+  // });
 
-  if (!campaign) {
-    return next(new ErrorHandler("This lead is not part of the campaign", 404));
-  }
+  // if (!campaign) {
+  //   return next(new ErrorHandler("This lead is not part of the campaign", 404));
+  // }
 
-  if (!lead) {
-    return next(new ErrorHandler("Lead not found", 404));
-  }
+  // if (!lead) {
+  //   return next(new ErrorHandler("Lead not found", 404));
+  // }
 
-  await lead.destroy();
+  // await lead.destroy();
+
+  // res.status(200).json({
+  //   success: true,
+  //   message: "Lead deleted successfully"
+  // });
+  const { query } = req.body;
+
+  const response = await AiSearchQuery(query);
 
   res.status(200).json({
     success: true,
-    message: "Lead deleted successfully"
+    filters: response,
   });
 });
 
@@ -608,5 +617,56 @@ exports.SearchLeadsByFilter = catchAsyncError(async (req, res, next) => {
   } catch (error) {
     console.error('Error processing search:', error);
     return next(new ErrorHandler('Failed to process search query', 500));
+  }
+});
+
+exports.ExtractQueryParams = catchAsyncError(async (req, res, next) => {
+  const { query } = req.body;
+  if (!query) {
+    return res.status(400).json({ error: 'No query provided' });
+  }
+
+  let extractedParams = {
+    person_titles: [],
+    industries: [],
+    revenues: [],
+    companies: [],
+    locations: [],
+    technologies: [],
+    funding_types: [],
+    names: [],
+    seniority: [],
+    department: [],
+    company_size: []
+  };
+
+  try {
+    const configuration = new Configuration({ apiKey: process.env.OPENAI_API_KEY });
+    const openai = new OpenAIApi(configuration);
+    const prompt = `Extract the following fields from this query. If a field is not present, return an empty array or null.\n- job_titles (array)\n- industries (array)\n- revenues (array, e.g. '$10M+', '1000-5000')\n- company_names (array)\n- locations (array)\n- technologies (array)\n- funding (array)\n- seniority (array)\n- department (array)\n- company_size (array)\n- names (array)\nQuery: "${query}"\nReturn as JSON.`;
+    const completion = await openai.createChatCompletion({
+      model: "gpt-3.5-turbo",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0,
+    });
+    const content = completion.data.choices[0].message.content;
+    const parsed = JSON.parse(content);
+    extractedParams = {
+      person_titles: parsed.job_titles || [],
+      industries: parsed.industries || [],
+      revenues: parsed.revenues || [],
+      companies: parsed.company_names || [],
+      locations: parsed.locations || [],
+      technologies: parsed.technologies || [],
+      funding_types: parsed.funding || [],
+      names: parsed.names || [],
+      seniority: parsed.seniority || [],
+      department: parsed.department || [],
+      company_size: parsed.company_size || []
+    };
+    return res.json({ extractedParameters: extractedParams });
+  } catch (err) {
+    console.error('OpenAI extraction failed:', err.message);
+    return res.status(500).json({ error: 'OpenAI extraction failed', details: err.message });
   }
 });

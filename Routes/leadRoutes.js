@@ -8,7 +8,8 @@ const {
     UpdateLeadStatus, 
     SearchLeads,
     SearchLeadsByFilter,
-    PromoteLead
+    PromoteLead,
+    ExtractQueryParams
 } = require("../Controller/leadController");
 const { VerifyUser } = require("../Middleware/userAuth");
 
@@ -23,5 +24,6 @@ router.route("/UpdateLeadStatus/:leadid").patch(VerifyUser, UpdateLeadStatus);
 router.route('/SearchLeads').post(VerifyUser, SearchLeads);
 router.route('/SearchLeadsByFilter').post(VerifyUser, SearchLeadsByFilter);
 router.route('/PromoteLead/:leadid').post(VerifyUser, PromoteLead);
+router.route('/ExtractQueryParams').post(VerifyUser, ExtractQueryParams);
 
 module.exports = router;

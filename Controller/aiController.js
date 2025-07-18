@@ -1,7 +1,9 @@
 // QuickPipe-Backend/Controller/aiController.js
 const axios = require('axios');
+const ErrorHandler = require('../Utils/errorHandler');
+const catchAsyncError = require('../Middleware/asyncError');
 
-exports.chatWithGPT = async (req, res) => {
+exports.chatWithGPT = catchAsyncError(async (req, res, next) => {
   const { message } = req.body;
   try {
     const response = await axios.post(
@@ -19,7 +21,6 @@ exports.chatWithGPT = async (req, res) => {
     );
     res.json({ reply: response.data.choices[0].message.content });
   } catch (error) {
-    console.error(error); // <--- This will print the real error in your backend console
-    res.status(500).json({ error: error.message });
+    next(new ErrorHandler(error.message, 500));
   }
-};
+});
